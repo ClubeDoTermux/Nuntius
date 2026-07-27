@@ -39,6 +39,97 @@ PROVIDER_INFO = {
         "site": "",
         "free": True,
     },
+    "nvidia": {
+        "name": "NVIDIA NIM",
+        "url": "https://integrate.api.nvidia.com/v1",
+        "models": [
+            "nvidia/llama-3.1-nemotron-70b-instruct",
+            "meta/llama-3.1-405b-instruct",
+            "meta/llama-3.3-70b-instruct",
+            "mistralai/mistral-7b-instruct-v0.3",
+            "google/gemma-2-27b-it",
+        ],
+        "site": "https://build.nvidia.com/explore/discover",
+        "free": True,
+    },
+    "github": {
+        "name": "GitHub Models",
+        "url": "https://models.inference.ai.azure.com",
+        "models": [
+            "gpt-4o", "gpt-4o-mini", "gpt-4o-turbo",
+            "Phi-3.5-MoE-instruct", "Phi-3.5-mini-instruct",
+            "Llama-3.1-70B-Instruct", "Llama-3.1-8B-Instruct",
+            "Cohere-command-r-plus-08-2024",
+            "Mistral-large-2407", "AI21-Jamba-1.5-Mini",
+        ],
+        "site": "https://github.com/marketplace/models",
+        "free": True,
+    },
+    "openrouter": {
+        "name": "OpenRouter",
+        "url": "https://openrouter.ai/api/v1",
+        "models": [
+            "openai/gpt-4o", "openai/gpt-4o-mini",
+            "anthropic/claude-3.5-sonnet",
+            "google/gemini-2.0-flash",
+            "meta-llama/llama-3.1-405b-instruct",
+            "mistralai/mistral-large-2411",
+            "deepseek/deepseek-chat",
+        ],
+        "site": "https://openrouter.ai/keys",
+        "free": False,
+    },
+    "together": {
+        "name": "Together AI",
+        "url": "https://api.together.xyz/v1",
+        "models": [
+            "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+            "meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo",
+            "mistralai/Mixtral-8x22B-Instruct-v0.1",
+            "deepseek-ai/DeepSeek-V3",
+            "Qwen/Qwen2.5-72B-Instruct-Turbo",
+        ],
+        "site": "https://api.together.ai/settings/api-keys",
+        "free": False,
+    },
+    "mistral": {
+        "name": "Mistral AI",
+        "url": "https://api.mistral.ai/v1",
+        "models": [
+            "mistral-large-latest", "mistral-small-latest",
+            "open-mistral-nemo", "codestral-latest",
+        ],
+        "site": "https://console.mistral.ai/api-keys/",
+        "free": False,
+    },
+    "xai": {
+        "name": "xAI (Grok)",
+        "url": "https://api.x.ai/v1",
+        "models": ["grok-beta", "grok-vision-beta"],
+        "site": "https://x.ai/api",
+        "free": False,
+    },
+    "perplexity": {
+        "name": "Perplexity",
+        "url": "https://api.perplexity.ai",
+        "models": [
+            "sonar-pro", "sonar", "sonar-reasoning-pro",
+            "sonar-deep-research",
+        ],
+        "site": "https://www.perplexity.ai/settings/api",
+        "free": False,
+    },
+    "fireworks": {
+        "name": "Fireworks AI",
+        "url": "https://api.fireworks.ai/inference/v1",
+        "models": [
+            "accounts/fireworks/models/llama-v3p3-70b-instruct",
+            "accounts/fireworks/models/qwen2p5-coder-32b-instruct",
+            "accounts/fireworks/models/deepseek-v3",
+        ],
+        "site": "https://fireworks.ai/api-keys",
+        "free": True,
+    },
 }
 
 DEFAULT_CONFIG = {

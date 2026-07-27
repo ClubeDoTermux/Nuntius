@@ -336,17 +336,35 @@ run_setup_wizard() {
     echo ""
 
     echo -e "Provedores disponiveis:"
-    echo -e "  ${GREEN}1)${NC} OpenAI"
-    echo -e "  ${GREEN}2)${NC} DeepSeek"
-    echo -e "  ${GREEN}3)${NC} Groq (gratuito)"
-    echo -e "  ${GREEN}4)${NC} Ollama (local)"
+    echo -e "  ${GREEN}openai${NC}     - OpenAI"
+    echo -e "  ${GREEN}deepseek${NC}   - DeepSeek"
+    echo -e "  ${GREEN}groq${NC}       - Groq (gratuito)"
+    echo -e "  ${GREEN}ollama${NC}     - Ollama (local)"
+    echo -e "  ${GREEN}nvidia${NC}     - NVIDIA NIM (gratuito)"
+    echo -e "  ${GREEN}github${NC}     - GitHub Models (gratuito)"
+    echo -e "  ${GREEN}openrouter${NC} - OpenRouter"
+    echo -e "  ${GREEN}together${NC}   - Together AI"
+    echo -e "  ${GREEN}mistral${NC}    - Mistral AI"
+    echo -e "  ${GREEN}xai${NC}        - xAI (Grok)"
+    echo -e "  ${GREEN}perplexity${NC} - Perplexity"
+    echo -e "  ${GREEN}fireworks${NC}  - Fireworks AI (gratuito)"
     echo ""
 
-    read -r -p "Escolha o provedor [1-4] (default: 1): " provider_choice
-    case "$provider_choice" in
-        2) provider="deepseek"; model="deepseek-chat" ;;
-        3) provider="groq"; model="llama3-70b-8192" ;;
-        4) provider="ollama"; model="llama3.2" ;;
+    read -r -p "Digite o codigo do provedor (default: openai): " provider
+    provider="${provider:-openai}"
+    model=""
+    case "$provider" in
+        deepseek) model="deepseek-chat" ;;
+        groq) model="llama3-70b-8192" ;;
+        ollama) model="llama3.2" ;;
+        nvidia) model="nvidia/llama-3.1-nemotron-70b-instruct" ;;
+        github) model="gpt-4o-mini" ;;
+        openrouter) model="openai/gpt-4o-mini" ;;
+        together) model="meta-llama/Llama-3.3-70B-Instruct-Turbo" ;;
+        mistral) model="mistral-small-latest" ;;
+        xai) model="grok-beta" ;;
+        perplexity) model="sonar-pro" ;;
+        fireworks) model="accounts/fireworks/models/llama-v3p3-70b-instruct" ;;
         *) provider="openai"; model="gpt-4o-mini" ;;
     esac
 
@@ -356,34 +374,45 @@ run_setup_wizard() {
         read -r -p "Digite sua API Key (deixe vazio para configurar depois): " api_key
     fi
 
+    echo ""
+    echo -e "${CYAN}Configurando...${NC}"
+
     # Salva a configuracao via Python
-    $PYTHON << PYEOF
-import os, yaml, json
+    $PYTHON -c "
+import os, yaml
 from pathlib import Path
 
-config_dir = Path(os.environ.get("NUNTIUS_CONFIG_DIR", str(Path.home() / ".config" / "nuntius")))
-config_path = config_dir / "config.yaml"
+config_dir = Path(os.environ.get('NUNTIUS_CONFIG_DIR', str(Path.home() / '.config' / 'nuntius')))
+config_path = config_dir / 'config.yaml'
 config_dir.mkdir(parents=True, exist_ok=True)
 
 defaults = {
-    "provider": "openai",
-    "model": "gpt-4o-mini",
-    "providers": {
-        "openai": {"api_key": "", "base_url": "https://api.openai.com/v1"},
-        "deepseek": {"api_key": "", "base_url": "https://api.deepseek.com/v1"},
-        "groq": {"api_key": "", "base_url": "https://api.groq.com/openai/v1"},
-        "ollama": {"api_key": "", "base_url": "http://localhost:11434/v1"},
+    'provider': '$provider',
+    'model': '$model',
+    'providers': {
+        'openai': {'api_key': '', 'base_url': 'https://api.openai.com/v1'},
+        'deepseek': {'api_key': '', 'base_url': 'https://api.deepseek.com/v1'},
+        'groq': {'api_key': '', 'base_url': 'https://api.groq.com/openai/v1'},
+        'ollama': {'api_key': '', 'base_url': 'http://localhost:11434/v1'},
+        'nvidia': {'api_key': '', 'base_url': 'https://integrate.api.nvidia.com/v1'},
+        'github': {'api_key': '', 'base_url': 'https://models.inference.ai.azure.com'},
+        'openrouter': {'api_key': '', 'base_url': 'https://openrouter.ai/api/v1'},
+        'together': {'api_key': '', 'base_url': 'https://api.together.xyz/v1'},
+        'mistral': {'api_key': '', 'base_url': 'https://api.mistral.ai/v1'},
+        'xai': {'api_key': '', 'base_url': 'https://api.x.ai/v1'},
+        'perplexity': {'api_key': '', 'base_url': 'https://api.perplexity.ai'},
+        'fireworks': {'api_key': '', 'base_url': 'https://api.fireworks.ai/inference/v1'},
     },
-    "platforms": {
-        "telegram": {"enabled": False, "token": ""},
-        "discord": {"enabled": False, "token": ""},
-        "github": {"enabled": False, "token": ""},
-        "drive": {"enabled": False, "credentials_path": ""},
+    'platforms': {
+        'telegram': {'enabled': False, 'token': ''},
+        'discord': {'enabled': False, 'token': ''},
+        'github': {'enabled': False, 'token': ''},
+        'drive': {'enabled': False, 'credentials_path': ''},
     },
-    "security": {"bash_approval": True},
-    "auto_learn": {"enabled": True},
-    "memory": {"enabled": True},
-    "tools": {"enabled": True},
+    'security': {'bash_approval': True},
+    'auto_learn': {'enabled': True},
+    'memory': {'enabled': True},
+    'tools': {'enabled': True},
 }
 
 if config_path.exists():
@@ -393,16 +422,16 @@ else:
     existing = {}
 
 cfg = {**defaults, **existing}
-cfg["provider"] = "$provider"
-cfg["model"] = "$model"
-if "$api_key":
-    cfg["providers"]["$provider"]["api_key"] = "$api_key"
+cfg['provider'] = '$provider'
+cfg['model'] = '$model'
+if '$api_key':
+    cfg['providers']['$provider']['api_key'] = '$api_key'
 
-with open(config_path, "w") as f:
+with open(config_path, 'w') as f:
     yaml.dump(cfg, f, default_flow_style=False)
 
-print(f"Configuracao salva em {config_path}")
-PYEOF
+print(f'Configuracao salva em {config_path}')
+"
 
     log_success "Configuracao concluida!"
     echo ""
