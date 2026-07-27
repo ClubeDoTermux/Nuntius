@@ -1,0 +1,10 @@
+Metadata-Version: 2.1
+Name: nuntius
+Version: 0.2.1
+Summary: Nuntius AI - Um agente de IA completo para Termux
+Requires-Python: >=3.8
+Provides-Extra: all
+Provides-Extra: discord
+Provides-Extra: drive
+Provides-Extra: github
+Provides-Extra: telegram

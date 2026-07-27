@@ -1,0 +1,2 @@
+[console_scripts]
+nuntius = nuntius.cli.main:cli
