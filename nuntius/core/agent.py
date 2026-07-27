@@ -6,7 +6,7 @@ from ..providers.openai import OpenAIProvider, ProviderError
 from ..skills.manager import SkillsManager
 from ..tools import registry
 
-MAX_TOOL_CYCLES = 5
+MAX_TOOL_CYCLES = 10
 
 
 class Agent:
@@ -25,19 +25,48 @@ class Agent:
         self.system_prompt = ""
         self.messages: list[dict] = []
 
+        self.mcp_manager = None
+        self._init_mcp()
+
         if self.config.get("memory", {}).get("enabled", True):
             self.memory = MemoryStore(self.config["memory"]["db_path"])
             self.conv_id = self.memory.create_conversation()
+
+    def _init_mcp(self):
+        mcp_cfg = self.config.get("mcp_servers", {})
+        enabled = {k: v for k, v in mcp_cfg.items() if isinstance(v, dict) and v.get("enabled")}
+        if enabled:
+            try:
+                from ..providers.mcp import MCPManager
+                self.mcp_manager = MCPManager()
+                for name, cfg in enabled.items():
+                    self.mcp_manager.add_server(
+                        name,
+                        cfg.get("command", ""),
+                        cfg.get("args", []),
+                    )
+            except Exception:
+                pass
 
     def _ensure_system_prompt(self):
         if self.system_prompt:
             return
         skills_text = self.skills.to_system_prompt()
         tools_list = "\n".join(f"- {t.name}: {t.description}" for t in registry.get_all())
+
+        mcp_tools = ""
+        if self.mcp_manager:
+            mcp_tools = "\n## MCP Tools\nTools loaded from external MCP servers."
+
         parts = [
-            "Você é Nuntius, um agente de IA completo e versátil.",
-            "Você pode ler e escrever arquivos, executar comandos, pesquisar na web, interagir com GitHub e Google Drive, e conversar em várias plataformas.",
-            f"## Ferramentas disponíveis\n{tools_list}",
+            "You are Nuntius, a powerful AI assistant integrated directly into the user's terminal.",
+            "You can read and write files, execute code and shell commands, search the web, interact with GitHub and Google Drive, and run external tools via MCP servers.",
+            "You operate in a Unix-like environment (Termux/Linux/macOS).",
+            "Be concise, practical, and helpful. When the user asks in Portuguese, respond in Portuguese. Match their language.",
+            "You never make assumptions about file paths — ask the user or use glob/search first.",
+            "For shell commands, prefer safe Python implementations when available.",
+            f"## Available Tools\n{tools_list}",
+            mcp_tools,
             skills_text,
         ]
         self.system_prompt = "\n\n".join(p for p in parts if p)
@@ -76,7 +105,9 @@ class Agent:
         tools = registry.get_openai_tools() if self.config.get("tools", {}).get("enabled", True) else None
 
         full_response = ""
-        while True:
+        self._tool_cycle = 0
+        while self._tool_cycle < MAX_TOOL_CYCLES:
+            self._tool_cycle += 1
             response = await self.provider.chat_completion(
                 messages=self.messages,
                 model=self.model,
@@ -110,7 +141,9 @@ class Agent:
         tools = registry.get_openai_tools() if self.config.get("tools", {}).get("enabled", True) else None
 
         full_response = ""
-        while True:
+        self._tool_cycle = 0
+        while self._tool_cycle < MAX_TOOL_CYCLES:
+            self._tool_cycle += 1
             collected_content = ""
             tool_calls_data = []
 
@@ -154,3 +187,5 @@ class Agent:
 
     async def close(self):
         await self.provider.close()
+        if self.mcp_manager:
+            await self.mcp_manager.close_all()

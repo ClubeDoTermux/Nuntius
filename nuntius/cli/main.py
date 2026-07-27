@@ -1,11 +1,18 @@
 import asyncio
+import shutil
 
 import click
-from rich.console import Console
+from rich.align import Align
+from rich.console import Console, Group
+from rich.layout import Layout
 from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.prompt import Prompt
+from rich.rule import Rule
+from rich.status import Status
+from rich.style import Style
 from rich.table import Table
+from rich.text import Text
 
 from ..config import (
     CONFIG_DIR,
@@ -17,27 +24,95 @@ from ..config import (
 from ..core.agent import Agent
 from ..platforms.gateway import Gateway
 from ..providers.openai import ProviderError
-from ..version import VERSION
+from ..version import VERSION, get_local_commit, get_local_branch
 
 GOLD = "gold1"
+ACCENT = "deep_sky_blue1"
+DIM = "grey62"
+GREEN = "green"
+RED = "red1"
 console = Console()
 
 PROVIDER_NAMES = list(PROVIDER_INFO.keys())
 
+BANNER_ART = """\
+                    ╔╗╔┌─┐┌┬┐╔╦╗╔╗╔┬─┐╔╗
+                    ║║║│ │ │ ║║║║║║║║║║
+                    ║║║│ │ │ ║║║║║║║║║║
+                    ╚╩╝└─┘ ┴ ╩╩╝╚╩╝└─┘╚╝"""
+
+
+def make_banner(cfg: dict) -> Panel:
+    provider = cfg.get("provider", "openai")
+    model = cfg.get("model", "gpt-4o-mini")
+    pname = PROVIDER_INFO.get(provider, {}).get("name", provider)
+    mod = model.split("/")[-1] if "/" in model else model
+
+    version_str = f"v{VERSION}"
+    commit = get_local_commit()
+    if commit:
+        version_str += f"  [{DIM}]{commit}[/{DIM}]"
+    branch = get_local_branch()
+    if branch:
+        version_str += f"  [{DIM}]{branch}[/{DIM}]"
+
+    info_parts = [
+        ("  ", ""),
+        ("\u25c8 ", ACCENT), ("Provedor: ", DIM), (f"{pname}", GOLD),
+        ("  \u25c8 ", ACCENT), ("Modelo: ", DIM), (f"{mod}", "white"),
+        "\n",
+        ("  ", ""),
+        ("\u25c8 ", ACCENT), ("Comandos: ", DIM),
+        ("/help ", GREEN), ("/exit ", RED), ("/new ", ACCENT), ("/model ", GOLD),
+    ]
+
+    mcp_cfg = cfg.get("mcp_servers", {})
+    mcp_enabled = [k for k, v in mcp_cfg.items() if isinstance(v, dict) and v.get("enabled")]
+    if mcp_enabled:
+        info_parts += [
+            "\n",
+            ("  ", ""),
+            ("\u25c8 ", ACCENT), ("MCP: ", DIM), (f"{', '.join(mcp_enabled)}", "cyan"),
+        ]
+
+    info_lines = Text.assemble(*info_parts)
+
+    title = Text.assemble(
+        ("N U N T I U S  ", GOLD),
+        ("A I", ACCENT),
+    )
+
+    inner = Group(
+        Align.center(Text(BANNER_ART, style=ACCENT)),
+        Align.center(title),
+        Align.center(Text(f"O Mensageiro da IA no Terminal  {version_str}", style=DIM)),
+        Rule(style=DIM),
+        info_lines,
+    )
+
+    return Panel(
+        inner,
+        border_style=GOLD,
+        padding=(1, 2),
+        subtitle=Text("Clube do Termux", style=DIM),
+    )
+
 
 def show_providers_table():
-    table = Table(title="Provedores disponiveis", border_style=GOLD)
+    table = Table(title="Provedores Disponiveis", border_style=GOLD, header_style=GOLD)
     table.add_column("Codigo", style=GOLD)
-    table.add_column("Nome", style="green")
+    table.add_column("Nome", style=GREEN)
     table.add_column("Gratis")
+    table.add_column("Site", style=DIM)
     for key, info in PROVIDER_INFO.items():
         free_tag = "[green]Sim[/green]" if info["free"] else "[yellow]Nao[/yellow]"
-        table.add_row(key, info["name"], free_tag)
+        site = info.get("site", "") or "[dim]-[/dim]"
+        table.add_row(key, info["name"], free_tag, site)
     console.print(table)
 
 
 def show_models(info: dict):
-    table = Table(title=f"Modelos disponiveis - {info['name']}", border_style=GOLD)
+    table = Table(title=f"Modelos - {info['name']}", border_style=GOLD, header_style=GOLD)
     table.add_column("#", style=GOLD, justify="right")
     table.add_column("Modelo", style="white")
     for i, m in enumerate(info.get("models", []), 1):
@@ -48,18 +123,14 @@ def show_models(info: dict):
 def pick_model(info: dict, current: str = "") -> str:
     models = info.get("models", [])
     if not models:
-        return Prompt.ask(f"[{GOLD}]Modelo[/{GOLD}]", default=current or info["model"])
+        return Prompt.ask(f"[bold {GOLD}]Modelo[/bold {GOLD}]", default=current or info["model"])
     show_models(info)
     default = current or info.get("model", models[0])
     answer = Prompt.ask(
-        f"[{GOLD}]Modelo[/{GOLD}] (digite o nome completo)",
+        f"[bold {GOLD}]Modelo[/bold {GOLD}] (digite o nome completo)",
         default=default,
     )
     return answer
-
-
-def get_info_key(info: dict, key: str, default=""):
-    return info.get(key, default)
 
 
 @click.group(invoke_without_command=True)
@@ -70,7 +141,7 @@ def cli(ctx):
         try:
             asyncio.run(interactive_chat())
         except KeyboardInterrupt:
-            console.print(f"\n[{GOLD}]Ate logo![/{GOLD}]")
+            console.print(f"\n[bold {GOLD}]Ate logo![/bold {GOLD}]")
 
 
 def run_setup(cfg: dict = None):
@@ -82,7 +153,7 @@ def run_setup(cfg: dict = None):
     show_providers_table()
 
     provider = Prompt.ask(
-        f"[{GOLD}]Provedor de IA[/{GOLD}] (digite o codigo)",
+        f"[bold {GOLD}]Provedor de IA[/bold {GOLD}] (digite o codigo)",
         choices=PROVIDER_NAMES,
         default=cfg.get("provider", "openai"),
     )
@@ -91,16 +162,16 @@ def run_setup(cfg: dict = None):
     prov_cfg = cfg["providers"][provider]
 
     if info.get("site"):
-        console.print(f"[dim]Obtem sua API Key em:[/dim] [{GOLD}]{info['site']}[/{GOLD}]")
+        console.print(f"[dim]Obtenha sua API Key em:[/dim] [bold {GOLD}]{info['site']}[/bold {GOLD}]")
 
     api_key = Prompt.ask(
-        f"[{GOLD}]API Key[/{GOLD}]" + (" (deixe vazio se for local)" if provider == "ollama" else ""),
+        f"[bold {GOLD}]API Key[/bold {GOLD}]" + (" (deixe vazio se for local)" if provider == "ollama" else ""),
         default=prov_cfg.get("api_key", ""),
     )
     prov_cfg["api_key"] = api_key
 
     base_url = Prompt.ask(
-        f"[{GOLD}]Base URL[/{GOLD}]",
+        f"[bold {GOLD}]Base URL[/bold {GOLD}]",
         default=prov_cfg.get("base_url", info["url"]),
     )
     if base_url:
@@ -125,7 +196,7 @@ def setup():
 @click.argument("message", nargs=-1)
 def run(message):
     """Executa uma mensagem unica."""
-    prompt = " ".join(message) if message else Prompt.ask(f"[{GOLD}]Mensagem[/{GOLD}]")
+    prompt = " ".join(message) if message else Prompt.ask(f"[bold {GOLD}]Mensagem[/bold {GOLD}]")
     asyncio.run(single_run(prompt))
 
 
@@ -203,9 +274,34 @@ def disable(name: str):
 
 
 @cli.command()
+@click.argument("name")
+def mcp(name: str):
+    """Gerencia servidores MCP."""
+    cfg = load_config()
+    servers = cfg.get("mcp_servers", {})
+    if name not in servers:
+        console.print(f"[red]Servidor MCP desconhecido: {name}[/red]")
+        console.print(f"[dim]Servidores configurados: {', '.join(servers.keys()) or 'nenhum'}[/dim]")
+        return
+    server = servers[name]
+    if click.confirm(f"[{GOLD}]Habilitar servidor MCP '{name}'?[/{GOLD}]", default=not server.get("enabled", False)):
+        server["enabled"] = not server.get("enabled", False)
+        status = "habilitado" if server["enabled"] else "desabilitado"
+        save_config(cfg)
+        console.print(f"[green]MCP '{name}' {status}![/green]")
+    command = Prompt.ask("Comando", default=server.get("command", ""))
+    if command:
+        server["command"] = command
+    args_str = Prompt.ask("Argumentos (separados por espaco)", default=" ".join(server.get("args", [])))
+    server["args"] = args_str.split() if args_str else []
+    save_config(cfg)
+    console.print(f"[green]Servidor MCP '{name}' configurado![/green]")
+
+
+@cli.command()
 def version():
     """Mostra a versao do Nuntius."""
-    console.print(f"Nuntius v{VERSION}")
+    console.print(make_banner(load_config()))
 
 
 async def single_run(prompt: str):
@@ -217,40 +313,22 @@ async def single_run(prompt: str):
 
     agent = Agent()
     try:
-        async for event in agent.stream_chat(prompt):
-            if event["type"] == "content":
-                console.print(event["data"], end="")
-            elif event["type"] == "tool_start":
-                console.print(f"\n[dim]{event['data']}[/dim]")
-            elif event["type"] == "tool_end":
-                name, result = event["data"]
-                console.print(f"\n[dim] {name}: {result[:200]}[/dim]")
-            elif event["type"] == "error":
-                console.print(f"\n[red]{event['data']}[/red]")
+        with Status("[dim]Processando...[/dim]", spinner="dots"):
+            async for event in agent.stream_chat(prompt):
+                if event["type"] == "content":
+                    console.print(event["data"], end="")
+                elif event["type"] == "tool_start":
+                    console.print(f"\n[dim]{event['data']}[/dim]")
+                elif event["type"] == "tool_end":
+                    name, result = event["data"]
+                    console.print(f"\n[dim]  {name}: {result[:200]}[/dim]")
+                elif event["type"] == "error":
+                    console.print(f"\n[red]{event['data']}[/red]")
         console.print()
     except Exception as e:
         console.print(f"[red]Erro: {e}[/red]")
     finally:
         await agent.close()
-
-
-def make_banner(cfg: dict, update_msg: str) -> str:
-    provider = cfg.get("provider", "openai")
-    model = cfg.get("model", "gpt-4o-mini")
-    pname = PROVIDER_INFO.get(provider, {}).get("name", provider)
-    mod = model.split("/")[-1] if "/" in model else model
-    banner = (
-        f"\n"
-        f"  ┌────────────────────────────────────────────┐\n"
-        f"  │            N U N T I U S  A I             │\n"
-        f"  │         v{VERSION}                            │\n"
-        f"  │  {pname} - {mod}           │\n"
-        f"  │  /help · /exit                             │\n"
-        f"  └────────────────────────────────────────────┘\n"
-    )
-    if update_msg:
-        banner += f"\n  {update_msg}\n"
-    return banner
 
 
 async def interactive_chat():
@@ -270,7 +348,8 @@ async def interactive_chat():
                 return
 
     agent = Agent()
-    console.print(make_banner(cfg, ""))
+    console.print(make_banner(cfg))
+    console.print()
 
     try:
         while True:
@@ -282,32 +361,78 @@ async def interactive_chat():
                 if cmd in ("exit", "quit", "sair"):
                     break
                 elif cmd in ("help", "ajuda"):
-                    console.print(Panel.fit(
-                        "[bold]Comandos no chat:[/bold]\n"
-                        "  /exit          Sai do chat\n"
-                        "  /help          Mostra esta mensagem\n"
-                        "  /clear         Limpa o console\n"
-                        "  /new           Nova conversa\n"
-                        "  /model         Mostra modelo ativo\n"
-                        "  /providers     Lista provedores\n"
-                        "  /skills        Lista skills aprendidas\n"
-                        "  /learn         /learn nome: instrucao\n"
-                        "  /forget        /forget nome\n"
-                        "\n[bold]Comandos externos:[/bold]\n"
-                        "  nuntius gateway   Inicia Telegram/Discord\n"
-                        "  nuntius setup     Configura o Nuntius",
+                    help_panel = Panel.fit(
+                        Group(
+                            Text.assemble(("\n", ""), ("[ Comandos do Chat ]", f"bold {GOLD}"), ("\n", "")),
+                            Rule(style=DIM),
+                            Text.assemble(
+                                ("/exit  ", RED), ("/quit  ", RED), ("/sair", RED),
+                                ("  Sai do chat", DIM), ("\n", ""),
+                                ("/help  ", GREEN), ("/ajuda", GREEN),
+                                ("  Mostra esta ajuda", DIM), ("\n", ""),
+                                ("/clear ", ACCENT), ("/limpar", ACCENT),
+                                ("  Limpa o console", DIM), ("\n", ""),
+                                ("/new   ", GOLD), ("/nova", GOLD),
+                                ("  Nova conversa", DIM), ("\n", ""),
+                                ("/model ", GOLD),
+                                ("  Mostra provedor/modelo ativos", DIM), ("\n", ""),
+                                ("/providers ", GOLD),
+                                ("  Lista provedores disponiveis", DIM), ("\n", ""),
+                                ("/skills ", "cyan"),
+                                ("  Lista skills aprendidas", DIM), ("\n", ""),
+                                ("/learn nome: instrucao", "cyan"),
+                                ("  Ensina uma skill", DIM), ("\n", ""),
+                                ("/forget nome", "cyan"),
+                                ("  Remove uma skill", DIM), ("\n", ""),
+                                ("/mcp ", ACCENT),
+                                ("  Mostra status dos servidores MCP", DIM),
+                            ),
+                            Rule(style=DIM),
+                            Text.assemble(
+                                ("\n[ Comandos Externos ]", f"bold {GOLD}"),
+                                ("\n", ""),
+                                ("  nuntius setup        ", DIM),
+                                ("Configurar provedor/API", "white"),
+                                ("\n", ""),
+                                ("  nuntius gateway      ", DIM),
+                                ("Iniciar Telegram/Discord", "white"),
+                                ("\n", ""),
+                                ("  nuntius platform     ", DIM),
+                                ("Gerenciar plataformas", "white"),
+                                ("\n", ""),
+                                ("  nuntius mcp <nome>   ", DIM),
+                                ("Configurar servidor MCP", "white"),
+                                ("\n", ""),
+                                ("  nuntius run <msg>    ", DIM),
+                                ("Mensagem unica", "white"),
+                            ),
+                        ),
                         border_style=GOLD,
-                    ))
+                        title="Ajuda",
+                    )
+                    console.print(help_panel)
                     continue
                 elif cmd in ("clear", "limpar"):
                     console.clear()
+                    console.print(make_banner(cfg))
                     continue
                 elif cmd in ("new", "nova"):
                     agent.reset_conversation()
-                    console.print("Nova conversa")
+                    cfg = load_config()
+                    console.print("[green]Nova conversa iniciada![/green]")
                     continue
                 elif cmd == "model":
-                    console.print(f"Provedor: {cfg.get('provider')} | Modelo: {cfg.get('model')}")
+                    p = cfg.get("provider", "openai")
+                    m = cfg.get("model", "gpt-4o-mini")
+                    pname = PROVIDER_INFO.get(p, {}).get("name", p)
+                    console.print(Panel.fit(
+                        Text.assemble(
+                            ("Provedor: ", DIM), (f"{p} ({pname})", GOLD), ("\n", ""),
+                            ("Modelo:   ", DIM), (f"{m}", "white"),
+                        ),
+                        border_style=GOLD,
+                        title="Configuracao Ativa",
+                    ))
                     continue
                 elif cmd == "providers":
                     show_providers_table()
@@ -315,48 +440,69 @@ async def interactive_chat():
                 elif cmd == "skills":
                     skills = agent.skills.list_skills()
                     if skills:
-                        for s in skills:
-                            console.print(f"- {s}")
+                        console.print(Panel(
+                            "\n".join(f"  {GREEN}\u2713{NC} {s}" for s in skills),
+                            title="Skills Aprendidas",
+                            border_style=GOLD,
+                        ))
                     else:
-                        console.print("Nenhuma skill aprendida.")
+                        console.print("[dim]Nenhuma skill aprendida.[/dim]")
+                    continue
+                elif cmd == "mcp":
+                    mcp_cfg = cfg.get("mcp_servers", {})
+                    if not mcp_cfg:
+                        console.print("[dim]Nenhum servidor MCP configurado.[/dim]")
+                        console.print("Adicione em ~/.config/nuntius/config.yaml ou use: nuntius mcp <nome>")
+                    else:
+                        table = Table(title="Servidores MCP", border_style=GOLD, header_style=GOLD)
+                        table.add_column("Nome", style=GOLD)
+                        table.add_column("Comando", style="white")
+                        table.add_column("Status")
+                        for k, v in mcp_cfg.items():
+                            status = "[green]Ativo[/green]" if v.get("enabled") else "[dim]Inativo[/dim]"
+                            cmd_display = v.get("command", "")
+                            args_display = " ".join(v.get("args", []))
+                            full_cmd = f"{cmd_display} {args_display}".strip()
+                            table.add_row(k, full_cmd, status)
+                        console.print(table)
                     continue
                 elif cmd.startswith("learn "):
                     rest = cmd[6:].strip()
                     if ":" in rest:
                         name, instruction = rest.split(":", 1)
                         agent.skills.learn(name.strip(), instruction.strip())
-                        console.print(f"Skill '{name.strip()}' aprendida!")
+                        console.print(f"[green]Skill '{name.strip()}' aprendida![/green]")
                     else:
-                        console.print("Use: /learn nome: instrucao")
+                        console.print("[yellow]Use: /learn nome: instrucao[/yellow]")
                     continue
                 elif cmd.startswith("forget "):
                     name = cmd[7:].strip()
                     agent.skills.forget(name)
-                    console.print(f"Skill '{name}' removida.")
+                    console.print(f"[yellow]Skill '{name}' removida.[/yellow]")
                     continue
                 else:
-                    console.print(f"Comando desconhecido: /{cmd}")
+                    console.print(f"[red]Comando desconhecido: /{cmd}[/red]")
                     continue
 
-            console.print(f"\n[dim]Processando...[/dim]")
-            try:
-                async for event in agent.stream_chat(user_input):
-                    if event["type"] == "content":
-                        console.print(event["data"], end="")
-                    elif event["type"] == "tool_start":
-                        console.print(f"\n[dim]{event['data']}[/dim]")
-                    elif event["type"] == "tool_end":
-                        name, result = event["data"]
-                        console.print(f"\n[dim] {name}: {result[:200]}[/dim]")
-                    elif event["type"] == "error":
-                        console.print(f"\n[red]{event['data']}[/red]")
-                    elif event["type"] == "done":
-                        agent.learn_from_interaction(user_input, event["data"])
-                console.print()
-            except ProviderError as e:
-                console.print(f"[red]Erro do provedor: {e.message}[/red]")
-            except Exception as e:
-                console.print(f"[red]Erro: {e}[/red]")
+            with Status("[dim]Processando...[/dim]", spinner="dots"):
+                try:
+                    async for event in agent.stream_chat(user_input):
+                        if event["type"] == "content":
+                            console.print(event["data"], end="")
+                        elif event["type"] == "tool_start":
+                            console.print(f"\n[dim]{event['data']}[/dim]")
+                        elif event["type"] == "tool_end":
+                            name, result = event["data"]
+                            console.print(f"\n[dim]  {name}: {result[:200]}[/dim]")
+                        elif event["type"] == "error":
+                            console.print(f"\n[red]{event['data']}[/red]")
+                        elif event["type"] == "done":
+                            agent.learn_from_interaction(user_input, event["data"])
+                    console.print()
+                except ProviderError as e:
+                    console.print(f"[red]Erro do provedor: {e.message}[/red]")
+                except Exception as e:
+                    console.print(f"[red]Erro: {e}[/red]")
     finally:
         await agent.close()
 

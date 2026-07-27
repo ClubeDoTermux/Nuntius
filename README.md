@@ -1,6 +1,11 @@
 # Nuntius AI
 
-Um agente de IA completo para rodar no Termux (e outros terminais).
+                    ╔╗╔┌─┐┌┬┐╔╦╗╔╗╔┬─┐╔╗
+                    ║║║│ │ │ ║║║║║║║║║║
+                    ║║║│ │ │ ║║║║║║║║║║
+                    ╚╩╝└─┘ ┴ ╩╩╝╚╩╝└─┘╚╝
+
+O Mensageiro da IA no Terminal — um agente de IA completo para Termux, Linux e macOS.
 
 ## Instalação
 
@@ -21,82 +26,49 @@ nuntius setup
 
 | Comando | Descrição |
 |---|---|
-| `nuntius` | Inicia o chat interativo |
+| `nuntius` | Inicia o chat interativo com banner |
 | `nuntius setup` | Configura provedor, modelo e API Key |
 | `nuntius run <mensagem>` | Executa uma mensagem única e sai |
 | `nuntius model` | Mostra/altera o provedor e modelo ativos |
 | `nuntius gateway` | Inicia o gateway para Telegram/Discord |
-| `nuntius platform enable <nome>` | Habilita uma plataforma (telegram, discord, github, drive) |
+| `nuntius platform enable <nome>` | Habilita uma plataforma |
 | `nuntius platform disable <nome>` | Desabilita uma plataforma |
-| `nuntius version` | Mostra a versão instalada |
+| `nuntius mcp <nome>` | Configura servidor MCP |
+| `nuntius version` | Mostra a versão e banner |
 
 ## Comandos do Chat
 
 | Comando | Descrição |
 |---|---|
-| `/exit` ou `/sair` | Sai do chat |
-| `/help` ou `/ajuda` | Mostra ajuda |
-| `/clear` ou `/limpar` | Limpa o console |
-| `/new` ou `/nova` | Inicia nova conversa |
+| `/exit` `/quit` `/sair` | Sai do chat |
+| `/help` `/ajuda` | Mostra ajuda detalhada |
+| `/clear` `/limpar` | Limpa o console |
+| `/new` `/nova` | Inicia nova conversa |
 | `/model` | Mostra provedor e modelo ativos |
 | `/providers` | Lista todos os provedores disponíveis |
-| `/skills` | Lista skills aprendidas pelo agente |
-| `/learn nome: instrucao` | Ensina uma nova skill ao agente |
-| `/forget nome` | Remove uma skill aprendida |
+| `/skills` | Lista skills aprendidas |
+| `/learn nome: instrucao` | Ensina uma nova skill |
+| `/forget nome` | Remove uma skill |
+| `/mcp` | Mostra status dos servidores MCP |
 
-## Ferramentas do Agente
+## Novidades
 
-### Código e Sistema
+### Banner Interativo
+Ao iniciar o Nuntius, um banner colorido com logotipo ASCII, informações do provedor/modelo ativo, versão e comandos úteis é exibido — inspirado em Hermes Agent e OpenClaude.
 
-| Ferramenta | Descrição |
-|---|---|
-| `calculator` | Executa operações matemáticas |
-| `run_python` | Executa código Python em ambiente isolado |
-| `run_javascript` | Executa código JavaScript (requer Node.js) |
-| `run_shell` | Executa comando no shell (requer aprovação) |
-| `shell` | Atalho para run_shell |
-| `bash` | Executa comando no terminal |
-| `system_info` | Mostra informações do dispositivo |
+### Suporte a MCP (Model Context Protocol)
+Conecte servidores MCP para estender as capacidades do agente com ferramentas externas. Configure no `config.yaml`:
 
-### Arquivos
+```yaml
+mcp_servers:
+  meu_servidor:
+    command: "python"
+    args: ["-m", "meu_mcp_server"]
+    enabled: true
+```
 
-| Ferramenta | Descrição |
-|---|---|
-| `read` | Lê o conteúdo de um arquivo |
-| `write` | Escreve conteúdo em um arquivo |
-| `edit` | Edita um arquivo substituindo trechos de texto |
-| `grep` | Procura texto em arquivos usando regex |
-| `glob` | Busca arquivos por padrão (ex: `**/*.py`) |
-| `ls` | Lista arquivos em um diretório |
-| `tree` | Mostra a árvore de diretórios |
-| `delete` | Exclui permanentemente arquivo/diretório |
-| `move` | Move ou renomeia arquivo/diretório |
-| `copy` | Copia arquivo ou diretório |
-| `organize` | Organiza arquivos por tipo/extensão |
-| `download` | Baixa um arquivo da internet |
-
-### Web
-
-| Ferramenta | Descrição |
-|---|---|
-| `web_search` | Pesquisa na web |
-| `web_fetch` | Obtém o conteúdo de uma URL |
-
-### GitHub
-
-| Ferramenta | Descrição |
-|---|---|
-| `github_list_repos` | Lista seus repositórios |
-| `github_create_issue` | Cria uma issue |
-| `github_list_issues` | Lista issues de um repositório |
-
-### Google Drive
-
-| Ferramenta | Descrição |
-|---|---|
-| `drive_list_files` | Lista arquivos do Google Drive |
-
-## Provedores Suportados
+### Provedores
+Mais de 14 provedores suportados! Destaques:
 
 | Provedor | Gratuito | Site |
 |---|---|---|
@@ -107,11 +79,21 @@ nuntius setup
 | NVIDIA NIM | ✅ | build.nvidia.com |
 | GitHub Models | ✅ | github.com/marketplace/models |
 | OpenRouter | ❌ | openrouter.ai |
-| Together AI | ❌ | together.ai |
-| Mistral AI | ❌ | mistral.ai |
-| xAI (Grok) | ❌ | x.ai |
-| Perplexity | ❌ | perplexity.ai |
+| Google Gemini | ✅ | aistudio.google.com |
+| Anthropic Claude | ❌ | console.anthropic.com |
 | Fireworks AI | ✅ | fireworks.ai |
+
+## Ferramentas do Agente
+
+O Nuntius possui ferramentas para:
+
+- **Código**: run_python, run_javascript, run_shell, bash
+- **Arquivos**: read, write, edit, grep, glob, ls, tree, delete, move, copy, organize, download
+- **Web**: web_search, web_fetch
+- **GitHub**: listar/criar issues, listar repositórios
+- **Google Drive**: listar arquivos
+- **Sistema**: calculator, current_time, system_info
+- **MCP**: ferramentas carregadas de servidores externos
 
 ## Plataformas
 
@@ -121,3 +103,7 @@ nuntius setup
 | Discord | `nuntius platform enable discord` |
 | GitHub | `nuntius platform enable github` |
 | Google Drive | `nuntius platform enable drive` |
+
+## Licença
+
+MIT

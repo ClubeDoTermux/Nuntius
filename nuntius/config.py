@@ -130,6 +130,23 @@ PROVIDER_INFO = {
         "site": "https://fireworks.ai/api-keys",
         "free": True,
     },
+    "gemini": {
+        "name": "Google Gemini",
+        "url": "https://generativelanguage.googleapis.com/v1beta/openai",
+        "models": [
+            "gemini-2.0-flash", "gemini-2.0-flash-lite",
+            "gemini-1.5-pro", "gemini-1.5-flash",
+        ],
+        "site": "https://aistudio.google.com/apikey",
+        "free": True,
+    },
+    "anthropic": {
+        "name": "Anthropic Claude",
+        "url": "https://api.anthropic.com/v1",
+        "models": ["claude-sonnet-4-20250514", "claude-3-5-sonnet-latest", "claude-3-5-haiku-latest"],
+        "site": "https://console.anthropic.com/",
+        "free": False,
+    },
 }
 
 DEFAULT_CONFIG = {
@@ -141,6 +158,9 @@ DEFAULT_CONFIG = {
         "discord": {"enabled": False, "token": ""},
         "github": {"enabled": False, "token": ""},
         "drive": {"enabled": False, "credentials_path": ""},
+    },
+    "mcp_servers": {
+        "example": {"command": "python", "args": ["-m", "mcp_server"], "enabled": False},
     },
     "security": {"bash_approval": True},
     "auto_learn": {"enabled": True},
@@ -161,7 +181,7 @@ def load_config() -> dict:
                 merged["providers"][k].update(v)
             else:
                 merged["providers"][k] = v
-    for key in ("provider", "model", "memory", "tools", "platforms", "security", "auto_learn"):
+    for key in ("provider", "model", "memory", "tools", "platforms", "mcp_servers", "security", "auto_learn"):
         if key in user:
             merged[key] = user[key]
     return merged

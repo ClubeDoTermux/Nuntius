@@ -13,11 +13,13 @@ setup(
         "pyyaml>=6.0",
     ],
     extras_require={
+        "mcp": ["mcp>=1.0.0"],
         "telegram": ["python-telegram-bot>=20.0"],
         "discord": ["discord.py>=2.0"],
         "github": ["PyGithub>=1.58"],
         "drive": ["google-api-python-client>=2.0", "google-auth-oauthlib>=1.0"],
         "all": [
+            "mcp>=1.0.0",
             "python-telegram-bot>=20.0",
             "discord.py>=2.0",
             "PyGithub>=1.58",

@@ -68,13 +68,15 @@ done
 print_banner() {
     echo ""
     echo -e "${MAGENTA}${BOLD}"
-    echo "  ┌────────────────────────────────────────────┐"
-    echo "  │            N U N T I U S  A I             │"
-    echo "  │         Instalador v0.2.1                  │"
-    echo "  │                                            │"
-    echo "  │  Um agente de IA completo para Termux      │"
-    echo "  └────────────────────────────────────────────┘"
+    echo "                    ╔╗╔┌─┐┌┬┐╔╦╗╔╗╔┬─┐╔╗"
+    echo "                    ║║║│ │ │ ║║║║║║║║║║"
+    echo "                    ║║║│ │ │ ║║║║║║║║║║"
+    echo "                    ╚╩╝└─┘ ┴ ╩╩╝╚╩╝└─┘╚╝"
     echo -e "${NC}"
+    echo -e "${BOLD}              N U N T I U S  A I${NC}"
+    echo -e "${CYAN}         O Mensageiro da IA no Terminal${NC}"
+    echo -e "${DIM}           Instalador v0.2.1 ${NC}"
+    echo ""
 }
 
 log_info()    { echo -e "${CYAN}->${NC} $1"; }
