@@ -283,34 +283,20 @@ create_command() {
     local link_dir=""
     if [ "$DISTRO" = "termux" ] && [ -n "${PREFIX:-}" ]; then
         link_dir="$PREFIX/bin"
-        ln -sf "$INSTALL_DIR/nuntius/cli/main.py" "$link_dir/nuntius" 2>/dev/null || true
     elif [ "$(id -u)" -eq 0 ]; then
         link_dir="/usr/local/bin"
     else
         link_dir="$HOME/.local/bin"
     fi
 
-    # Cria o wrapper
-    local wrapper="$link_dir/nuntius"
     mkdir -p "$link_dir"
+    local wrapper="$link_dir/nuntius"
     cat > "$wrapper" << 'WRAPPER'
 #!/bin/sh
-# Wrapper Nuntius - encontra e executa o modulo
-SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0" 2>/dev/null || echo "$0")")" && pwd)"
-for candidate in \
-    "$SCRIPT_DIR/../nuntius" \
-    "$HOME/.nuntius/nuntius" \
-; do
-    if [ -f "$candidate/__main__.py" ]; then
-        exec python3 "$candidate/__main__.py" "$@"
-    fi
-done
-# Fallback: tenta como pacote instalado
-exec python3 -m nuntius "$@" 2>/dev/null || exec python3 -c "from nuntius.cli.main import cli; cli()" "$@"
+exec python3 -m nuntius "$@"
 WRAPPER
     chmod +x "$wrapper"
 
-    # Se for Termux, cria um alias extra via .bashrc
     if [ "$DISTRO" = "termux" ]; then
         if ! grep -q "nuntius" "$HOME/.bashrc" 2>/dev/null; then
             echo 'alias nuntius="python3 -m nuntius"' >> "$HOME/.bashrc"

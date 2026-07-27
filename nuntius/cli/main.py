@@ -359,3 +359,7 @@ async def interactive_chat():
                 console.print(f"[red]Erro: {e}[/red]")
     finally:
         await agent.close()
+
+
+if __name__ == "__main__":
+    cli()
