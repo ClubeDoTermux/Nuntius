@@ -2,20 +2,19 @@
 
 Um agente de IA completo para rodar no Termux (e outros terminais).
 
-## Instalação no Termux
+## Instalação
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ClubeDoTermux/Nuntius/main/install.sh | bash
+```
+
+Ou manualmente:
 
 ```bash
 pkg update && pkg upgrade
 pkg install python git
-pip install nuntius
-```
-
-Ou instalacao local:
-
-```bash
-git clone https://github.com/SEU_USUARIO/Nuntius.git
-cd Nuntius
-pip install -e .
+pip install git+https://github.com/ClubeDoTermux/Nuntius.git
+nuntius setup
 ```
 
 ## Uso
