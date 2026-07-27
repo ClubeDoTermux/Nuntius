@@ -32,15 +32,28 @@ class MemoryStore:
                 )
             """)
 
+    def _recreate_db(self):
+        Path(self.db_path).unlink(missing_ok=True)
+        self._init_db()
+
     def create_conversation(self) -> str:
         conv_id = str(uuid.uuid4())[:8]
         now = datetime.now().isoformat()
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute(
-                "INSERT INTO conversations (id, created_at, updated_at) VALUES (?, ?, ?)",
-                (conv_id, now, now),
-            )
-        return conv_id
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.execute(
+                    "INSERT INTO conversations (id, created_at, updated_at) VALUES (?, ?, ?)",
+                    (conv_id, now, now),
+                )
+            return conv_id
+        except sqlite3.IntegrityError:
+            self._recreate_db()
+            with sqlite3.connect(self.db_path) as conn:
+                conn.execute(
+                    "INSERT INTO conversations (id, created_at, updated_at) VALUES (?, ?, ?)",
+                    (conv_id, now, now),
+                )
+            return conv_id
 
     def add_message(self, conv_id: str, role: str, content: str, tool_calls: list = None):
         now = datetime.now().isoformat()
