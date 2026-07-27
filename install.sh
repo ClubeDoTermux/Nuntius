@@ -89,6 +89,42 @@ log_success() { echo -e "${GREEN}ok${NC} $1"; }
 log_warn()    { echo -e "${YELLOW}!!${NC} $1"; }
 log_error()   { echo -e "${RED}XX${NC} $1"; }
 
+detect_pkg_manager() {
+    if command -v apt &>/dev/null; then
+        PKG_MANAGER="apt"
+        PKG_INSTALL="sudo apt install -y"
+        PKG_SEARCH="sudo apt install"
+    elif command -v dnf &>/dev/null; then
+        PKG_MANAGER="dnf"
+        PKG_INSTALL="sudo dnf install -y"
+        PKG_SEARCH="sudo dnf install"
+    elif command -v yum &>/dev/null; then
+        PKG_MANAGER="yum"
+        PKG_INSTALL="sudo yum install -y"
+        PKG_SEARCH="sudo yum install"
+    elif command -v zypper &>/dev/null; then
+        PKG_MANAGER="zypper"
+        PKG_INSTALL="sudo zypper install -y"
+        PKG_SEARCH="sudo zypper install"
+    elif command -v pacman &>/dev/null; then
+        PKG_MANAGER="pacman"
+        PKG_INSTALL="sudo pacman -S --noconfirm"
+        PKG_SEARCH="sudo pacman -S"
+    elif command -v apk &>/dev/null; then
+        PKG_MANAGER="apk"
+        PKG_INSTALL="sudo apk add"
+        PKG_SEARCH="sudo apk add"
+    elif [ "$DISTRO" = "termux" ]; then
+        PKG_MANAGER="pkg"
+        PKG_INSTALL="pkg install -y"
+        PKG_SEARCH="pkg install"
+    else
+        PKG_MANAGER=""
+        PKG_INSTALL=""
+        PKG_SEARCH=""
+    fi
+}
+
 is_termux() {
     [ -n "${TERMUX_VERSION:-}" ] || [[ "${PREFIX:-}" == *"/com.termux/files/usr"* ]]
 }
@@ -168,11 +204,10 @@ check_git() {
     fi
 
     log_error "Git nao encontrado. Instale o git e tente novamente."
-    if [ "$DISTRO" = "termux" ]; then
-        log_info "  pkg install git"
-    elif [ "$OS" = "linux" ]; then
-        log_info "  sudo apt install git  (ou use seu gerenciador de pacotes)"
-    elif [ "$OS" = "macos" ]; then
+    if [ -n "$PKG_SEARCH" ]; then
+        log_info "  $PKG_SEARCH git"
+    fi
+    if [ "$OS" = "macos" ]; then
         log_info "  brew install git"
     fi
     exit 1
@@ -183,7 +218,12 @@ check_python() {
     if command -v python3 &>/dev/null; then
         PYTHON="python3"
     elif command -v python &>/dev/null; then
-        PYTHON="python"
+        # Verificar se 'python' e Python 3 (Arch, Alpine)
+        if python --version 2>&1 | grep -q "^Python 3"; then
+            PYTHON="python"
+        else
+            PYTHON=""
+        fi
     else
         PYTHON=""
     fi
@@ -194,7 +234,7 @@ check_python() {
     fi
 
     if [ "$DISTRO" = "termux" ]; then
-        log_info "Instalando Python via pkg..."
+        log_info "Instalando Python via $PKG_MANAGER..."
         pkg install -y python >/dev/null
         PYTHON="python3"
         log_success "Python $($PYTHON --version 2>&1) instalado"
@@ -202,11 +242,16 @@ check_python() {
     fi
 
     log_error "Python 3.8+ nao encontrado. Instale o Python e tente novamente."
-    if [ "$DISTRO" = "termux" ]; then
-        log_info "  pkg install python"
-    elif [ "$OS" = "linux" ]; then
-        log_info "  sudo apt install python3 python3-pip python3-venv"
-    elif [ "$OS" = "macos" ]; then
+    if [ -n "$PKG_SEARCH" ]; then
+        if [ "$PKG_MANAGER" = "apt" ]; then
+            log_info "  $PKG_SEARCH python3 python3-pip python3-venv"
+        elif [ "$PKG_MANAGER" = "pacman" ]; then
+            log_info "  $PKG_SEARCH python python-pip"
+        else
+            log_info "  $PKG_SEARCH python3"
+        fi
+    fi
+    if [ "$OS" = "macos" ]; then
         log_info "  brew install python@3.11"
     fi
     exit 1
@@ -241,6 +286,12 @@ install_system_deps() {
         log_info "Instalando dependencias do sistema para Termux..."
         pkg install -y clang rust make pkg-config libffi openssl ca-certificates curl ripgrep 2>/dev/null || true
         log_success "Dependencias do Termux verificadas"
+    fi
+    # Linux: garantir que venv esteja disponivel para pip
+    if [ "$OS" = "linux" ] && [ "$PKG_MANAGER" = "apt" ]; then
+        python3 -c "import ensurepip" 2>/dev/null || \
+        python3 -m pip --version >/dev/null 2>&1 || \
+        sudo apt install -y python3-pip python3-venv 2>/dev/null || true
     fi
 }
 
@@ -300,7 +351,11 @@ create_command() {
     local wrapper="$link_dir/nuntius"
     cat > "$wrapper" << 'WRAPPER'
 #!/bin/sh
-exec python3 -m nuntius "$@"
+if command -v python3 >/dev/null 2>&1; then
+    exec python3 -m nuntius "$@"
+else
+    exec python -m nuntius "$@"
+fi
 WRAPPER
     chmod +x "$wrapper"
 
@@ -311,7 +366,25 @@ WRAPPER
     fi
 
     log_success "Comando 'nuntius' disponivel em $link_dir"
-    log_info "  Se necessario, adicione ao PATH: export PATH=\"\$PATH:$link_dir\""
+
+    # Garantir que o diretorio esta no PATH
+    if ! echo "$PATH" | tr ':' '\n' | grep -qx "$link_dir"; then
+        local rcfile=""
+        case "$SHELL" in
+            */zsh) rcfile="$HOME/.zshrc" ;;
+            */bash) rcfile="$HOME/.bashrc" ;;
+        esac
+        if [ -n "$rcfile" ] && [ -f "$rcfile" ]; then
+            if ! grep -q "export PATH.*$link_dir" "$rcfile" 2>/dev/null; then
+                echo "" >> "$rcfile"
+                echo "# Nuntius" >> "$rcfile"
+                echo "export PATH=\"\$PATH:$link_dir\"" >> "$rcfile"
+                log_info "  Diretorio adicionado ao PATH em $rcfile"
+            fi
+        else
+            log_info "  Adicione ao PATH: export PATH=\"\$PATH:$link_dir\""
+        fi
+    fi
 }
 
 run_setup_wizard() {
@@ -438,6 +511,7 @@ print(f'Configuracao salva em {config_path}')
 main() {
     print_banner
     detect_os
+    detect_pkg_manager
     check_git
     check_python
     check_pip

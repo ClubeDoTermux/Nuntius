@@ -54,7 +54,7 @@ nuntius setup
 ## Novidades
 
 ### Banner Interativo
-Ao iniciar o Nuntius, um banner colorido com logotipo ASCII, informações do provedor/modelo ativo, versão e comandos úteis é exibido — inspirado em Hermes Agent e OpenClaude.
+Ao iniciar o Nuntius, um banner colorido com logotipo ASCII, informações do provedor/modelo ativo, versão e comandos úteis é exibido.
 
 ### Suporte a MCP (Model Context Protocol)
 Conecte servidores MCP para estender as capacidades do agente com ferramentas externas. Configure no `config.yaml`:
