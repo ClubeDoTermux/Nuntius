@@ -157,30 +157,27 @@ class Glob(BaseTool):
 
 class Bash(BaseTool):
     name = "bash"
-    description = "Executa comando no terminal"
+    description = "Executa qualquer comando no shell do sistema"
     parameters = {
         "type": "object",
         "properties": {
-            "command": {"type": "string", "description": "Comando a executar"},
+            "command": {"type": "string", "description": "Comando shell completo"},
             "workdir": {"type": "string", "description": "Diretorio de trabalho"},
-            "timeout": {"type": "integer", "description": "Timeout em segundos"},
+            "timeout": {"type": "integer", "description": "Timeout em segundos (max 300)"},
         },
         "required": ["command"],
     }
 
-    async def execute(self, command: str, workdir: str = "", timeout: int = 60) -> str:
-        cfg = load_config()
-        if cfg.get("security", {}).get("bash_approval", True):
-            return "Execute bash approvals com /bash ou desative em config."
-
+    async def execute(self, command: str, workdir: str = "", timeout: int = 120) -> str:
         cwd = workdir or "."
+        timeout = min(timeout, 300)
         try:
             result = subprocess.run(
                 command, shell=True, cwd=cwd,
                 capture_output=True, text=True, timeout=timeout,
             )
-            out = result.stdout or result.stderr
-            return out[:3000] if out else "Comando executado (sem saida)."
+            out = result.stdout.strip() or result.stderr.strip()
+            return out[:5000] if out else "Comando executado (sem saida)."
         except subprocess.TimeoutExpired:
             return "Comando excedeu o tempo limite."
         except Exception as e:

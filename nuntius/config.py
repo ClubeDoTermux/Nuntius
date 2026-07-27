@@ -162,7 +162,7 @@ DEFAULT_CONFIG = {
     "mcp_servers": {
         "example": {"command": "python", "args": ["-m", "mcp_server"], "enabled": False},
     },
-    "security": {"bash_approval": True},
+    "security": {"bash_approval": False},
     "auto_learn": {"enabled": True},
     "memory": {"enabled": True, "db_path": str(DATA_DIR / "nuntius.db")},
     "tools": {"enabled": True},
