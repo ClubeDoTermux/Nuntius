@@ -168,6 +168,37 @@ def run_setup(cfg: dict = None):
     return cfg
 
 
+_SHOWED_403_HINT = False
+
+
+def _handle_provider_error(e: ProviderError, cfg: dict):
+    global _SHOWED_403_HINT
+    pname = cfg.get("provider", "openai")
+    model = cfg.get("model", "gpt-4o-mini")
+    base = cfg.get("providers", {}).get(pname, {}).get("base_url", "")
+    msg = f"[red]Erro do provedor:[/red] {e.message}"
+
+    if e.status == 403 or e.status == 401:
+        if not _SHOWED_403_HINT:
+            _SHOWED_403_HINT = True
+            console.print(Panel.fit(
+                f"[red]Erro {e.status}:[/red] {e.message}\n\n"
+                f"[yellow]Provedor:[/yellow] {pname}\n"
+                f"[yellow]Modelo:[/yellow] {model}\n"
+                f"[yellow]Endpoint:[/yellow] {base}\n\n"
+                f"[green]Solucoes:[/green]\n"
+                f"  1. Execute [bold]nuntius setup[/bold] para configurar um provedor gratuito\n"
+                f"  2. Verifique se a API Key esta correta em: {CONFIG_DIR / 'config.yaml'}\n"
+                f"  3. Provedores gratuitos: [bold]groq[/bold], [bold]github[/bold], [bold]nvidia[/bold], [bold]fireworks[/bold]",
+                border_style="red",
+                title="Falha de Autenticacao",
+            ))
+        else:
+            console.print(msg)
+    else:
+        console.print(msg)
+
+
 @cli.command()
 def setup():
     """Configura o Nuntius pela primeira vez."""
@@ -308,6 +339,8 @@ async def single_run(prompt: str):
                 elif event["type"] == "error":
                     console.print(f"\n[red]{event['data']}[/red]")
         console.print()
+    except ProviderError as e:
+        _handle_provider_error(e, cfg)
     except Exception as e:
         console.print(f"[red]Erro: {e}[/red]")
     finally:
@@ -483,7 +516,7 @@ async def interactive_chat():
                             agent.learn_from_interaction(user_input, event["data"])
                     console.print()
                 except ProviderError as e:
-                    console.print(f"[red]Erro do provedor: {e.message}[/red]")
+                    _handle_provider_error(e, cfg)
                 except Exception as e:
                     console.print(f"[red]Erro: {e}[/red]")
     finally:

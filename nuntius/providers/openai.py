@@ -1,14 +1,22 @@
 import json
+import re
 from typing import AsyncGenerator, Optional
 
 import httpx
 
 
+def _clean_error(text: str) -> str:
+    text = re.sub(r"<[^>]+>", "", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    lines = [l for l in text.split("\n") if l.strip()][:3]
+    return " | ".join(lines)[:300]
+
+
 class ProviderError(Exception):
     def __init__(self, status: int, message: str):
         self.status = status
-        self.message = message
-        super().__init__(f"HTTP {status}: {message}")
+        self.message = _clean_error(message)
+        super().__init__(f"HTTP {status}: {self.message}")
 
 
 class OpenAIProvider:
@@ -86,7 +94,7 @@ class OpenAIProvider:
                         err = await response.aread()
                         detail = json.loads(err).get("error", {}).get("message", str(response))
                     except Exception:
-                        detail = response.text
+                        detail = (await response.aread()).decode("utf-8", errors="replace")
                     raise ProviderError(response.status_code, detail)
                 async for line in response.aiter_lines():
                     if line.startswith("data: "):
