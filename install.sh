@@ -67,15 +67,20 @@ done
 
 print_banner() {
     echo ""
-    echo -e "${MAGENTA}${BOLD}"
-    echo "                    ╔╗╔┌─┐┌┬┐╔╦╗╔╗╔┬─┐╔╗"
-    echo "                    ║║║│ │ │ ║║║║║║║║║║"
-    echo "                    ║║║│ │ │ ║║║║║║║║║║"
-    echo "                    ╚╩╝└─┘ ┴ ╩╩╝╚╩╝└─┘╚╝"
-    echo -e "${NC}"
-    echo -e "${BOLD}              N U N T I U S  A I${NC}"
+    echo -e "${GREEN}${BOLD}╔═══════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}  ███╗   ██╗██╗   ██╗███╗   ██╗████████╗██╗██╗   ██╗███████╗"
+    echo -e "${CYAN}  ████╗  ██║██║   ██║████╗  ██║╚══██╔══╝██║██║   ██║██╔════╝"
+    echo -e "${CYAN}  ██╔██╗ ██║██║   ██║██╔██╗ ██║   ██║   ██║██║   ██║███████╗"
+    echo -e "${CYAN}  ██║╚██╗██║██║   ██║██║╚██╗██║   ██║   ██║██║   ██║╚════██║"
+    echo -e "${CYAN}  ██║ ╚████║╚██████╔╝██║ ╚████║   ██║   ██║╚██████╔╝███████║"
+    echo -e "${CYAN}  ╚═╝  ╚═══╝ ╚═════╝ ╚═╝  ╚═══╝   ╚═╝   ╚═╝ ╚═════╝ ╚══════╝"
+    echo -e "${GREEN}╠═══════════════════════════════════════════════════════════╣${NC}"
+    echo -e "${BOLD}              N U N T I U S   A I   v0.2.1${NC}"
     echo -e "${CYAN}         O Mensageiro da IA no Terminal${NC}"
-    echo -e "${DIM}           Instalador v0.2.1 ${NC}"
+    echo -e "${GREEN}╠═══════════════════════════════════════════════════════════╣${NC}"
+    echo -e "${YELLOW}  █ Provedor: ${GREEN}OpenAI${NC}        ${YELLOW}█ Modelo: ${GREEN}gpt-4o-mini${NC}"
+    echo -e "${GREEN}╚═══════════════════════════════════════════════════════════╝${NC}"
+    echo -e "${CIANO}github.com/ClubeDoTermux/Nuntius ${NC}"
     echo ""
 }
 

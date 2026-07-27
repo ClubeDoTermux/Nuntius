@@ -27,7 +27,8 @@ from ..providers.openai import ProviderError
 from ..version import VERSION, get_local_commit, get_local_branch
 
 GOLD = "gold1"
-ACCENT = "deep_sky_blue1"
+CYAN = "cyan"
+MAGENTA = "magenta"
 DIM = "grey62"
 GREEN = "green"
 RED = "red1"
@@ -36,10 +37,12 @@ console = Console()
 PROVIDER_NAMES = list(PROVIDER_INFO.keys())
 
 BANNER_ART = """\
-                    ╔╗╔┌─┐┌┬┐╔╦╗╔╗╔┬─┐╔╗
-                    ║║║│ │ │ ║║║║║║║║║║
-                    ║║║│ │ │ ║║║║║║║║║║
-                    ╚╩╝└─┘ ┴ ╩╩╝╚╩╝└─┘╚╝"""
+  ███╗   ██╗██╗   ██╗███╗   ██╗████████╗██╗██╗   ██╗███████╗
+  ████╗  ██║██║   ██║████╗  ██║╚══██╔══╝██║██║   ██║██╔════╝
+  ██╔██╗ ██║██║   ██║██╔██╗ ██║   ██║   ██║██║   ██║███████╗
+  ██║╚██╗██║██║   ██║██║╚██╗██║   ██║   ██║██║   ██║╚════██║
+  ██║ ╚████║╚██████╔╝██║ ╚████║   ██║   ██║╚██████╔╝███████║
+  ╚═╝  ╚═══╝ ╚═════╝ ╚═╝  ╚═══╝   ╚═╝   ╚═╝ ╚═════╝ ╚══════╝"""
 
 
 def make_banner(cfg: dict) -> Panel:
@@ -48,54 +51,33 @@ def make_banner(cfg: dict) -> Panel:
     pname = PROVIDER_INFO.get(provider, {}).get("name", provider)
     mod = model.split("/")[-1] if "/" in model else model
 
-    version_str = f"v{VERSION}"
     commit = get_local_commit()
-    if commit:
-        version_str += f"  [{DIM}]{commit}[/{DIM}]"
     branch = get_local_branch()
-    if branch:
-        version_str += f"  [{DIM}]{branch}[/{DIM}]"
+    ver = f"v{VERSION}"
+    if commit:
+        ver += f" [{DIM}]{commit}[/{DIM}]"
 
-    info_parts = [
-        ("  ", ""),
-        ("\u25c8 ", ACCENT), ("Provedor: ", DIM), (f"{pname}", GOLD),
-        ("  \u25c8 ", ACCENT), ("Modelo: ", DIM), (f"{mod}", "white"),
-        "\n",
-        ("  ", ""),
-        ("\u25c8 ", ACCENT), ("Comandos: ", DIM),
-        ("/help ", GREEN), ("/exit ", RED), ("/new ", ACCENT), ("/model ", GOLD),
+    info_lines = [
+        f"  [{CYAN}]█[/] [{DIM}]Provedor:[/] [{GOLD}]{pname}[/{GOLD}]   [{CYAN}]█[/] [{DIM}]Modelo:[/] [{GOLD}]{mod}[/{GOLD}]",
+        f"  [{CYAN}]█[/] [{DIM}]Comandos:[/] [{GREEN}]/help[/] [{RED}]/exit[/] [{CYAN}]/new[/] [{GOLD}]/model[/]",
     ]
 
     mcp_cfg = cfg.get("mcp_servers", {})
     mcp_enabled = [k for k, v in mcp_cfg.items() if isinstance(v, dict) and v.get("enabled")]
     if mcp_enabled:
-        info_parts += [
-            "\n",
-            ("  ", ""),
-            ("\u25c8 ", ACCENT), ("MCP: ", DIM), (f"{', '.join(mcp_enabled)}", "cyan"),
-        ]
-
-    info_lines = Text.assemble(*info_parts)
-
-    title = Text.assemble(
-        ("N U N T I U S  ", GOLD),
-        ("A I", ACCENT),
-    )
+        info_lines.append(f"  [{CYAN}]█[/] [{DIM}]MCP:[/] [cyan]{', '.join(mcp_enabled)}[/]")
 
     inner = Group(
-        Align.center(Text(BANNER_ART, style=ACCENT)),
-        Align.center(title),
-        Align.center(Text(f"O Mensageiro da IA no Terminal  {version_str}", style=DIM)),
-        Rule(style=DIM),
-        info_lines,
+        Text(f"╔═══════════════════════════════════════════════════════════╗", style=GOLD),
+        Align.center(Text(BANNER_ART, style=CYAN)),
+        Align.center(Text(f"N U N T I U S   A I   {ver}", style=GOLD)),
+        Align.center(Text(f"O Mensageiro da IA no Terminal  [{DIM}]{branch}[/{DIM}]", style=DIM)),
+        Text(f"╠═══════════════════════════════════════════════════════════╣", style=GOLD),
+        Text("\n".join(info_lines)),
+        Text(f"╚═══════════════════════════════════════════════════════════╝", style=GOLD),
     )
 
-    return Panel(
-        inner,
-        border_style=GOLD,
-        padding=(1, 2),
-        subtitle=Text("Clube do Termux", style=DIM),
-    )
+    return inner
 
 
 def show_providers_table():
