@@ -1,3 +1,4 @@
+import logging
 import os
 from pathlib import Path
 
@@ -170,8 +171,10 @@ DEFAULT_CONFIG = {
         "blocked_commands": ["sudo rm", "rm -rf /", "rm -rf /*", "mkfs", "dd if=", "> /dev/sd", "chmod 777 /", "wget -O- | sh", "curl | sh", "mv / ", ":(){ :|:& };:"],
     },
     "auto_learn": {"enabled": True},
-    "memory": {"enabled": True, "db_path": str(DATA_DIR / "nuntius.db")},
+    "memory": {"enabled": True, "db_path": str(DATA_DIR / "nuntius.db"), "vector_enabled": True, "vector_path": str(DATA_DIR / "chroma"), "auto_retrieval": True, "retrieval_count": 3},
     "tools": {"enabled": True},
+    "plugins": {"enabled": True, "plugins_dir": str(CONFIG_DIR / "plugins")},
+    "log_level": "WARNING",
 }
 
 
@@ -196,9 +199,11 @@ def load_config() -> dict:
                 merged["providers"][k].update(v)
             else:
                 merged["providers"][k] = v
-    for key in ("provider", "model", "memory", "tools", "platforms", "mcp_servers", "security", "auto_learn"):
+    for key in ("provider", "model", "memory", "tools", "platforms", "mcp_servers", "security", "auto_learn", "plugins"):
         if key in user:
             merged[key] = user[key]
+    log_level = merged.get("log_level", "WARNING")
+    logging.getLogger("nuntius").setLevel(getattr(logging, log_level.upper(), logging.WARNING))
     return _apply_env_overrides(merged)
 
 

@@ -13,6 +13,8 @@ def test_default_config():
     assert "provider" in cfg
     assert "model" in cfg
     assert "security" in cfg
+    assert "plugins" in cfg
+    assert cfg["plugins"]["enabled"] is True
     assert cfg["provider"] in PROVIDER_INFO
 
 

@@ -2,7 +2,8 @@ import json
 
 from ..config import load_config, get_active_provider
 from ..memory.store import MemoryStore
-from ..providers.openai import OpenAIProvider, ProviderError
+from ..providers.base import ProviderRegistry
+from ..providers.openai import ProviderError
 from ..skills.manager import SkillsManager
 from ..tools import registry
 
@@ -10,13 +11,18 @@ MAX_TOOL_CYCLES = 25
 
 
 class Agent:
-    def __init__(self):
-        self.config = load_config()
-        provider_cfg = get_active_provider(self.config)
-        self.provider = OpenAIProvider(
-            api_key=provider_cfg.get("api_key", ""),
-            base_url=provider_cfg.get("base_url", "https://api.openai.com/v1"),
-        )
+    def __init__(self, config: dict = None, provider = None):
+        self.config = config if config is not None else load_config()
+        if provider is not None:
+            self.provider = provider
+        else:
+            pname = self.config.get("provider", "openai")
+            provider_cfg = get_active_provider(self.config)
+            self.provider = ProviderRegistry.create(
+                pname,
+                api_key=provider_cfg.get("api_key", ""),
+                base_url=provider_cfg.get("base_url", ""),
+            )
         self.model = self.config.get("model", "gpt-4o-mini")
         self.memory = None
         self.conv_id = None
@@ -25,12 +31,47 @@ class Agent:
         self.system_prompt = ""
         self.messages: list[dict] = []
 
+        self.vector_memory = None
+        self.learning_loop = None
+        self.plugin_manager = None
         self.mcp_manager = None
+        self._init_learning()
         self._init_mcp()
 
-        if self.config.get("memory", {}).get("enabled", True):
-            self.memory = MemoryStore(self.config["memory"]["db_path"])
+        mem_cfg = self.config.get("memory", {})
+        if mem_cfg.get("enabled", True):
+            self.memory = MemoryStore(mem_cfg["db_path"])
             self.conv_id = self.memory.create_conversation()
+            if mem_cfg.get("vector_enabled", True):
+                try:
+                    from ..memory.vector import VectorMemory
+                    self.vector_memory = VectorMemory(mem_cfg.get("vector_path", ""))
+                except Exception:
+                    pass
+
+        self._init_plugins()
+
+    def _init_learning(self):
+        learn_cfg = self.config.get("auto_learn", {})
+        if learn_cfg.get("enabled", True):
+            try:
+                from ..core.learning import LearningLoop
+                self.learning_loop = LearningLoop(config=learn_cfg)
+            except Exception:
+                pass
+
+    def _init_plugins(self):
+        plug_cfg = self.config.get("plugins", {})
+        if not plug_cfg.get("enabled", True):
+            return
+        try:
+            from ..plugins.manager import PluginManager, BUILTIN_DIR
+            self.plugin_manager = PluginManager(config=plug_cfg)
+            self.plugin_manager.load_all()
+            if BUILTIN_DIR.is_dir() and plug_cfg.get("load_builtins", True):
+                self.plugin_manager.load_directory(BUILTIN_DIR)
+        except Exception:
+            pass
 
     def _init_mcp(self):
         mcp_cfg = self.config.get("mcp_servers", {})
@@ -103,6 +144,26 @@ class Agent:
         if not self.messages or self.messages[0].get("role") != "system":
             self.messages.insert(0, sys_msg)
 
+    def _retrieve_relevant_context(self, user_input: str) -> str:
+        if not self.vector_memory or not self.vector_memory.available:
+            return ""
+        mem_cfg = self.config.get("memory", {})
+        if not mem_cfg.get("auto_retrieval", True):
+            return ""
+        count = mem_cfg.get("retrieval_count", 3)
+        try:
+            results = self.vector_memory.search(user_input, n_results=count)
+            if not results:
+                return ""
+            lines = ["## Relevant Past Context"]
+            for r in results:
+                c = r.get("content", "")
+                if c:
+                    lines.append(f"- [{r.get('role', '?')}] {c[:200]}")
+            return "\n".join(lines)
+        except Exception:
+            return ""
+
     def _add_message(self, role: str, content: str = "", tool_calls: list = None):
         self._ensure_system_prompt()
         msg = {"role": role, "content": content}
@@ -111,6 +172,8 @@ class Agent:
         self.messages.append(msg)
         if self.memory and self.conv_id:
             self.memory.add_message(self.conv_id, role, content, tool_calls)
+        if self.vector_memory and content:
+            self.vector_memory.add_message(self.conv_id or "", role, content)
 
     def _add_tool_result(self, tool_call_id: str, name: str, content: str):
         self.messages.append({
@@ -130,7 +193,14 @@ class Agent:
 
     async def chat(self, user_input: str) -> str:
         if user_input:
-            self._add_message("user", user_input)
+            context = self._retrieve_relevant_context(user_input)
+            feedback = self.learning_loop.get_feedback() if self.learning_loop else ""
+            combined = user_input
+            if context:
+                combined += f"\n\n{context}"
+            if feedback:
+                combined += f"\n\n{feedback}"
+            self._add_message("user", combined)
         tools = registry.get_openai_tools() if self.config.get("tools", {}).get("enabled", True) else None
 
         full_response = ""
@@ -155,6 +225,8 @@ class Agent:
                     fn = tc["function"]
                     args = json.loads(fn.get("arguments", "{}"))
                     result = await registry.execute(fn["name"], **args)
+                    if self.learning_loop:
+                        self.learning_loop.evaluate_tool(fn["name"], result)
                     self._add_tool_result(tc["id"], fn["name"], result)
             else:
                 content = msg.get("content", "")
@@ -166,7 +238,14 @@ class Agent:
 
     async def stream_chat(self, user_input: str):
         if user_input:
-            self._add_message("user", user_input)
+            context = self._retrieve_relevant_context(user_input)
+            feedback = self.learning_loop.get_feedback() if self.learning_loop else ""
+            combined = user_input
+            if context:
+                combined += f"\n\n{context}"
+            if feedback:
+                combined += f"\n\n{feedback}"
+            self._add_message("user", combined)
         tools = registry.get_openai_tools() if self.config.get("tools", {}).get("enabled", True) else None
 
         full_response = ""
@@ -201,6 +280,8 @@ class Agent:
                         args = {}
                     yield {"type": "tool_start", "data": f"{name}({args})"}
                     result = await registry.execute(name, **args)
+                    if self.learning_loop:
+                        self.learning_loop.evaluate_tool(name, result)
                     self._add_tool_result(tc.get("id", ""), name, result)
                     yield {"type": "tool_end", "data": (name, result)}
             else:
@@ -211,10 +292,19 @@ class Agent:
         yield {"type": "done", "data": full_response}
 
     def learn_from_interaction(self, user_input: str, response: str):
-        if self.config.get("auto_learn", {}).get("enabled", False):
+        if self.learning_loop:
+            self.learning_loop.learn(user_input, response)
+        elif self.config.get("auto_learn", {}).get("enabled", False):
             self.skills.learn_from_conversation(user_input[:100], response[:500])
 
     async def close(self):
         await self.provider.close()
         if self.mcp_manager:
             await self.mcp_manager.close_all()
+        if self.vector_memory:
+            self.vector_memory.close()
+        try:
+            from ..tools.browser_tools import close_browser
+            await close_browser()
+        except Exception:
+            pass

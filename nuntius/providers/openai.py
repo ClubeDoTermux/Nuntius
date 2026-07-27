@@ -7,6 +7,8 @@ from typing import AsyncGenerator, Optional
 
 import httpx
 
+from .base import BaseProvider, ProviderRegistry
+
 logger = logging.getLogger("nuntius.providers.openai")
 
 
@@ -37,7 +39,10 @@ async def _retry_with_backoff(coro_factory, max_retries=3):
             raise
 
 
-class OpenAIProvider:
+class OpenAIProvider(BaseProvider):
+    name = "openai"
+    default_model = "gpt-4o-mini"
+
     def __init__(self, api_key: str, base_url: str = "https://api.openai.com/v1"):
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
@@ -65,11 +70,16 @@ class OpenAIProvider:
         }
 
         async def _do_request():
-            response = await self.client.post(
-                f"{self.base_url}/chat/completions",
-                json=body,
-                headers=headers,
-            )
+            try:
+                response = await self.client.post(
+                    f"{self.base_url}/chat/completions",
+                    json=body,
+                    headers=headers,
+                )
+            except httpx.TimeoutException:
+                raise ProviderError(0, "Tempo limite excedido. O servidor demorou muito para responder.")
+            except httpx.ConnectError:
+                raise ProviderError(0, "Falha de conexao. Verifique sua internet e se a URL esta correta.")
             if response.is_error:
                 try:
                     err = response.json()
@@ -104,10 +114,17 @@ class OpenAIProvider:
 
         async def _do_connect():
             c = httpx.AsyncClient(timeout=120)
-            r = await c.send(
-                httpx.Request("POST", f"{self.base_url}/chat/completions", json=body, headers=headers),
-                stream=True,
-            )
+            try:
+                r = await c.send(
+                    httpx.Request("POST", f"{self.base_url}/chat/completions", json=body, headers=headers),
+                    stream=True,
+                )
+            except httpx.TimeoutException:
+                await c.aclose()
+                raise ProviderError(0, "Tempo limite excedido. O servidor demorou muito para responder.")
+            except httpx.ConnectError:
+                await c.aclose()
+                raise ProviderError(0, "Falha de conexao. Verifique sua internet e se a URL esta correta.")
             if r.is_error:
                 try:
                     err_text = await r.aread()
@@ -135,3 +152,6 @@ class OpenAIProvider:
 
     async def close(self):
         await self.client.aclose()
+
+
+ProviderRegistry.register("openai", OpenAIProvider)

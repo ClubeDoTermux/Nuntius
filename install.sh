@@ -475,10 +475,11 @@ defaults = {
         'github': {'enabled': False, 'token': ''},
         'drive': {'enabled': False, 'credentials_path': ''},
     },
-    'security': {'bash_approval': True},
+    'security': {'bash_approval': False, 'dangerous_command_protection': True, 'block_internal_networks': True, 'allowed_commands': [], 'blocked_commands': ['sudo rm', 'rm -rf /', 'rm -rf /*', 'mkfs', 'dd if=', '> /dev/sd', 'chmod 777 /', 'wget -O- | sh', 'curl | sh', 'mv / ', ':(){ :|:& };:']},
     'auto_learn': {'enabled': True},
     'memory': {'enabled': True},
     'tools': {'enabled': True},
+    'log_level': 'WARNING',
 }
 
 if config_path.exists():

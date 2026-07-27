@@ -12,6 +12,7 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     datefmt="%H:%M:%S",
 )
+log = logging.getLogger("nuntius")
 from rich.align import Align
 from rich.console import Console, Group
 from rich.layout import Layout
@@ -147,6 +148,10 @@ def pick_model(info: dict, current: str = "") -> str:
 @click.pass_context
 def cli(ctx):
     ensure_dirs()
+    cfg = load_config()
+    log_level = cfg.get("log_level", "WARNING")
+    logging.getLogger("nuntius").setLevel(getattr(logging, log_level.upper(), logging.WARNING))
+    log.debug(f"Log level: {log_level}")
     if ctx.invoked_subcommand is None:
         try:
             asyncio.run(interactive_chat())
@@ -428,6 +433,12 @@ async def interactive_chat():
                                 ("  Lista provedores disponiveis", DIM), ("\n", ""),
                                 ("/skills ", "cyan"),
                                 ("  Lista skills aprendidas", DIM), ("\n", ""),
+                                ("/good ", GREEN), ("/bom ", GREEN), ("/ok", GREEN),
+                                ("  Marca interacao como bem-sucedida", DIM), ("\n", ""),
+                                ("/bad ", RED), ("/ruim ", RED), ("/fail", RED),
+                                ("  Marca interacao como mal-sucedida", DIM), ("\n", ""),
+                                ("/feedback ", GOLD), ("/stats ", GOLD),
+                                ("  Estatisticas de aprendizado", DIM), ("\n", ""),
                                 ("/learn nome: instrucao", "cyan"),
                                 ("  Ensina uma skill", DIM), ("\n", ""),
                                 ("/forget nome", "cyan"),
@@ -494,6 +505,28 @@ async def interactive_chat():
                     else:
                         console.print("[dim]Nenhuma skill aprendida.[/dim]")
                     continue
+                elif cmd in ("tools", "ferramentas"):
+                    from ..tools.registry import get_all
+                    from rich.table import Table
+                    all_tools = get_all()
+                    tbl = Table(title=f"Ferramentas ({len(all_tools)})", border_style=GOLD)
+                    tbl.add_column("Nome", style="cyan")
+                    tbl.add_column("Descricao", style="white")
+                    for t in all_tools:
+                        tbl.add_row(t.name, t.description[:60])
+                    with console.pager():
+                        console.print(tbl)
+                    continue
+                elif cmd == "providers":
+                    from ..providers import ProviderRegistry
+                    from rich.table import Table
+                    registered = ProviderRegistry.list()
+                    tbl = Table(title=f"Provedores ({len(registered)})", border_style=GOLD)
+                    tbl.add_column("Nome", style="cyan")
+                    for p in sorted(registered):
+                        tbl.add_row(p)
+                    console.print(tbl)
+                    continue
                 elif cmd == "mcp":
                     mcp_cfg = cfg.get("mcp_servers", {})
                     if not mcp_cfg:
@@ -511,6 +544,90 @@ async def interactive_chat():
                             full_cmd = f"{cmd_display} {args_display}".strip()
                             table.add_row(k, full_cmd, status)
                         console.print(table)
+                    continue
+                elif cmd.startswith("search"):
+                    query = cmd[7:].strip()
+                    if not query:
+                        console.print("[yellow]Use: /search <termo>[/yellow]")
+                        continue
+                    if not agent.vector_memory or not agent.vector_memory.available:
+                        console.print("[yellow]Memoria vetorial indisponivel. Instale chromadb: pip install chromadb[/yellow]")
+                        continue
+                    from rich.table import Table
+                    results = agent.vector_memory.search(query, n_results=10)
+                    if not results:
+                        console.print("[dim]Nenhum resultado encontrado.[/dim]")
+                        continue
+                    tbl = Table(title=f"Busca: {query}", border_style=GOLD)
+                    tbl.add_column("Conversa", style="cyan")
+                    tbl.add_column("Papel", style=DIM)
+                    tbl.add_column("Conteudo", style="white")
+                    for r in results:
+                        tbl.add_row(r.get("conv_id", "?"), r.get("role", "?"), r.get("content", "")[:120])
+                    with console.pager():
+                        console.print(tbl)
+                    continue
+                elif cmd in ("scheduled", "tasks", "cron"):
+                    from ..core.scheduler import list_tasks
+                    tasks = list_tasks()
+                    if not tasks:
+                        console.print("[dim]Nenhuma tarefa agendada.[/dim]")
+                        continue
+                    tbl = Table(title="Tarefas Agendadas (cron)", border_style=GOLD)
+                    tbl.add_column("ID", style="cyan")
+                    tbl.add_column("Cron", style=GOLD)
+                    tbl.add_column("Comando", style="white")
+                    for t in tasks:
+                        tbl.add_row(t["id"], t["cron"], t["command"])
+                    console.print(tbl)
+                    continue
+                elif cmd in ("plugins", "plug"):
+                    if not agent.plugin_manager:
+                        console.print("[yellow]Sistema de plugins desabilitado.[/yellow]")
+                        continue
+                    plugins = agent.plugin_manager.list_plugins()
+                    if not plugins:
+                        console.print("[dim]Nenhum plugin carregado.[/dim]")
+                        continue
+                    tbl = Table(title="Plugins", border_style=GREEN)
+                    tbl.add_column("Nome", style="cyan")
+                    tbl.add_column("Caminho", style=DIM)
+                    tbl.add_column("Status")
+                    for p in plugins:
+                        status = f"[red]Erro[/]" if p.error else "[green]OK[/]"
+                        tbl.add_row(p.name, p.path, status)
+                    console.print(tbl)
+                    continue
+                elif cmd in ("good", "bom", "ok"):
+                    if agent.learning_loop:
+                        msg = agent.learning_loop.mark_good()
+                        console.print(f"[green]{msg}[/green]")
+                    else:
+                        console.print("[yellow]Loop de aprendizado desabilitado.[/yellow]")
+                    continue
+                elif cmd in ("bad", "ruim", "fail"):
+                    if agent.learning_loop:
+                        msg = agent.learning_loop.mark_bad()
+                        console.print(f"[red]{msg}[/red]")
+                    else:
+                        console.print("[yellow]Loop de aprendizado desabilitado.[/yellow]")
+                    continue
+                elif cmd in ("feedback", "stats", "estatisticas"):
+                    if not agent.learning_loop:
+                        console.print("[yellow]Loop de aprendizado desabilitado.[/yellow]")
+                        continue
+                    stats = agent.learning_loop.get_stats()
+                    s = stats.get("skills", {})
+                    tbl = Table(title="Aprendizado", border_style=GOLD)
+                    tbl.add_column("Metrica", style=GOLD)
+                    tbl.add_column("Valor", style="white")
+                    tbl.add_row("Padroes registrados", str(s.get("total_patterns", 0)))
+                    tbl.add_row("Licoes confiaveis", str(s.get("reliable_lessons", 0)))
+                    tools = stats.get("tools", {})
+                    for tname, tstats in sorted(tools.items()):
+                        rate = tstats["successes"] / max(tstats["total"], 1) * 100
+                        tbl.add_row(f"  {tname}", f"{rate:.0f}% ({tstats['successes']}/{tstats['total']})")
+                    console.print(tbl)
                     continue
                 elif cmd.startswith("learn "):
                     rest = cmd[6:].strip()
