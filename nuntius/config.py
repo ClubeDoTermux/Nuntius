@@ -162,16 +162,31 @@ DEFAULT_CONFIG = {
     "mcp_servers": {
         "example": {"command": "python", "args": ["-m", "mcp_server"], "enabled": False},
     },
-    "security": {"bash_approval": False},
+    "security": {
+        "bash_approval": False,
+        "dangerous_command_protection": True,
+        "block_internal_networks": True,
+        "allowed_commands": [],
+        "blocked_commands": ["sudo rm", "rm -rf /", "rm -rf /*", "mkfs", "dd if=", "> /dev/sd", "chmod 777 /", "wget -O- | sh", "curl | sh", "mv / ", ":(){ :|:& };:"],
+    },
     "auto_learn": {"enabled": True},
     "memory": {"enabled": True, "db_path": str(DATA_DIR / "nuntius.db")},
     "tools": {"enabled": True},
 }
 
 
+def _apply_env_overrides(cfg: dict):
+    for provider_name in cfg.get("providers", {}):
+        env_key = f"NUNTIUS_{provider_name.upper()}_KEY"
+        env_val = os.getenv(env_key)
+        if env_val:
+            cfg["providers"][provider_name]["api_key"] = env_val
+    return cfg
+
+
 def load_config() -> dict:
     if not CONFIG_PATH.exists():
-        return DEFAULT_CONFIG.copy()
+        return _apply_env_overrides(DEFAULT_CONFIG.copy())
     with open(CONFIG_PATH) as f:
         user = yaml.safe_load(f) or {}
     merged = DEFAULT_CONFIG.copy()
@@ -184,7 +199,7 @@ def load_config() -> dict:
     for key in ("provider", "model", "memory", "tools", "platforms", "mcp_servers", "security", "auto_learn"):
         if key in user:
             merged[key] = user[key]
-    return merged
+    return _apply_env_overrides(merged)
 
 
 def save_config(cfg: dict):

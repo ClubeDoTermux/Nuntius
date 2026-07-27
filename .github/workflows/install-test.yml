@@ -1,0 +1,13 @@
+name: Install Test
+on: [push, pull_request]
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test install script
+        run: |
+          bash install.sh --skip-setup
+      - name: Verify nuntius command
+        run: |
+          python3 -m nuntius version

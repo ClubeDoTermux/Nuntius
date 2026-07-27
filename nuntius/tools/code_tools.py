@@ -3,6 +3,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+from ..config import load_config
 from .registry import BaseTool, register
 
 
@@ -50,6 +51,19 @@ class RunShell(BaseTool):
     }
 
     async def execute(self, command: str, workdir: str = "") -> str:
+        cfg = load_config()
+        sec = cfg.get("security", {})
+        if sec.get("dangerous_command_protection", True):
+            cmd_lower = command.lower()
+            allowed = sec.get("allowed_commands", [])
+            blocked = sec.get("blocked_commands", [])
+            if allowed:
+                if not any(a.lower() in cmd_lower for a in allowed):
+                    return f"Comando bloqueado por seguranca: nenhum padrao em allowed_commands correspondeu. Para permitir, adicione o comando a allowed_commands no config.yaml."
+            else:
+                for pattern in blocked:
+                    if pattern.lower() in cmd_lower:
+                        return f"Comando bloqueado por seguranca: {pattern}. Para permitir, desative dangerous_command_protection no config.yaml ou adicione o comando a allowed_commands."
         cwd = workdir or "."
         try:
             result = subprocess.run(command, shell=True, cwd=cwd,

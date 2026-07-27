@@ -1,7 +1,17 @@
 import asyncio
+import logging
 import shutil
 
 import click
+from prompt_toolkit import PromptSession
+from prompt_toolkit.history import InMemoryHistory
+from prompt_toolkit.formatted_text import ANSI
+
+logging.basicConfig(
+    level=logging.WARNING,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%H:%M:%S",
+)
 from rich.align import Align
 from rich.console import Console, Group
 from rich.layout import Layout
@@ -13,6 +23,8 @@ from rich.status import Status
 from rich.style import Style
 from rich.table import Table
 from rich.text import Text
+
+from pathlib import Path
 
 from ..config import (
     CONFIG_DIR,
@@ -44,6 +56,21 @@ BANNER_ART = """\
   ██║╚██╗██║██║   ██║██║╚██╗██║   ██║   ██║██║   ██║╚════██║
   ██║ ╚████║╚██████╔╝██║ ╚████║   ██║   ██║╚██████╔╝███████║
   ╚═╝  ╚═══╝ ╚═════╝ ╚═╝  ╚═══╝   ╚═╝   ╚═╝ ╚═════╝ ╚══════╝"""
+
+
+def pager_print(text, title=""):
+    lines = text.split("\n")
+    term_height = shutil.get_terminal_size().lines - 3
+    if len(lines) > term_height:
+        from rich.table import Table
+        t = Table(title=title, border_style=GOLD)
+        t.add_column("", style="white")
+        for line in lines:
+            t.add_row(line)
+        with console.pager():
+            console.print(t)
+    else:
+        console.print(text)
 
 
 def make_banner(cfg: dict) -> Panel:
@@ -367,9 +394,14 @@ async def interactive_chat():
     console.print(make_banner(cfg))
     console.print()
 
+    session = PromptSession(history=InMemoryHistory())
+
     try:
         while True:
-            user_input = Prompt.ask(f"\n[bold]Voce[/bold]")
+            try:
+                user_input = session.prompt("\n\x1b[1mVoce\x1b[0m ")
+            except (EOFError, KeyboardInterrupt):
+                break
             if not user_input:
                 continue
             if user_input.startswith("/"):
@@ -452,15 +484,13 @@ async def interactive_chat():
                     continue
                 elif cmd == "providers":
                     show_providers_table()
+                    console.print("[dim]Use setas ou Page Up/Down para navegar, 'q' para sair[/dim]")
                     continue
                 elif cmd == "skills":
                     skills = agent.skills.list_skills()
                     if skills:
-                        console.print(Panel(
-                            "\n".join(f"  [{GREEN}]\u2713[/] {s}" for s in skills),
-                            title="Skills Aprendidas",
-                            border_style=GOLD,
-                        ))
+                        content = "\n".join(f"  [{GREEN}]\u2713[/] {s}" for s in skills)
+                        pager_print(content, title="Skills Aprendidas")
                     else:
                         console.print("[dim]Nenhuma skill aprendida.[/dim]")
                     continue
@@ -495,6 +525,65 @@ async def interactive_chat():
                     name = cmd[7:].strip()
                     agent.skills.forget(name)
                     console.print(f"[yellow]Skill '{name}' removida.[/yellow]")
+                    continue
+                elif cmd in ("history", "historico"):
+                    history_msgs = agent.messages.copy()
+                    if not history_msgs:
+                        console.print("[dim]Nenhuma mensagem no historico.[/dim]")
+                        continue
+                    from rich.table import Table
+                    tbl = Table(title="Historico da Conversa", border_style=GOLD)
+                    tbl.add_column("#", style=GOLD)
+                    tbl.add_column("Papel", style="cyan")
+                    tbl.add_column("Conteudo", style="white")
+                    for i, msg in enumerate(history_msgs):
+                        role = msg.get("role", "?")
+                        content = (msg.get("content", "") or "")[:100]
+                        if role == "system":
+                            content = "(system prompt)"
+                        tbl.add_row(str(i), role, content)
+                    console.print(tbl)
+                    continue
+                elif cmd.startswith("export"):
+                    from datetime import datetime
+                    export_path = cmd[6:].strip() or f"nuntius_conversa_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
+                    exp_path = Path(export_path).expanduser().resolve()
+                    lines = [f"# Conversa Nuntius\n", f"Data: {datetime.now().isoformat()}\n", f"Provedor: {cfg.get('provider')}\n", f"Modelo: {cfg.get('model')}\n\n"]
+                    for msg in agent.messages:
+                        role = msg.get("role", "?").upper()
+                        content = msg.get("content", "") or ""
+                        if role == "SYSTEM":
+                            continue
+                        lines.append(f"## **{role}**\n\n{content}\n\n---\n\n")
+                    exp_path.parent.mkdir(parents=True, exist_ok=True)
+                    exp_path.write_text("".join(lines), encoding="utf-8")
+                    console.print(f"[green]Conversa exportada para:[/green] {exp_path}")
+                    continue
+                elif cmd in ("stats", "status"):
+                    total = len(agent.messages)
+                    tool_count = sum(1 for m in agent.messages if m.get("role") == "tool")
+                    user_count = sum(1 for m in agent.messages if m.get("role") == "user")
+                    asst_count = sum(1 for m in agent.messages if m.get("role") == "assistant")
+                    console.print(Panel.fit(
+                        f"Mensagens: {total} (user: {user_count}, assistant: {asst_count}, tools: {tool_count})\n"
+                        f"Provedor: {cfg.get('provider')} | Modelo: {cfg.get('model')}",
+                        title="Estatisticas", border_style=GOLD,
+                    ))
+                    continue
+                elif cmd == "cache":
+                    from ..tools.registry import get_cache_size, clear_cache
+                    console.print(Panel.fit(
+                        f"Cache ativo: {get_cache_size()} entradas\n"
+                        f"Use [bold]/cache limpar[/bold] para limpar",
+                        title="Cache", border_style=GOLD,
+                    ))
+                    continue
+                elif cmd.startswith("cache "):
+                    sub = cmd[6:].strip()
+                    if sub in ("clear", "limpar"):
+                        from ..tools.registry import clear_cache
+                        clear_cache()
+                        console.print("[green]Cache limpo.[/green]")
                     continue
                 else:
                     console.print(f"[red]Comando desconhecido: /{cmd}[/red]")

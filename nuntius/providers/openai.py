@@ -1,8 +1,13 @@
+import asyncio
 import json
+import logging
+import random
 import re
 from typing import AsyncGenerator, Optional
 
 import httpx
+
+logger = logging.getLogger("nuntius.providers.openai")
 
 
 def _clean_error(text: str) -> str:
@@ -17,6 +22,19 @@ class ProviderError(Exception):
         self.status = status
         self.message = _clean_error(message)
         super().__init__(f"HTTP {status}: {self.message}")
+
+
+async def _retry_with_backoff(coro_factory, max_retries=3):
+    for attempt in range(max_retries):
+        try:
+            return await coro_factory()
+        except ProviderError as e:
+            if e.status == 429 and attempt < max_retries - 1:
+                wait = (2 ** attempt) + random.uniform(0, 1)
+                logger.warning(f"Rate limited (429). Retrying in {wait:.1f}s (attempt {attempt+1}/{max_retries})")
+                await asyncio.sleep(wait)
+                continue
+            raise
 
 
 class OpenAIProvider:
@@ -46,19 +64,21 @@ class OpenAIProvider:
             "Content-Type": "application/json",
         }
 
-        response = await self.client.post(
-            f"{self.base_url}/chat/completions",
-            json=body,
-            headers=headers,
-        )
-        if response.is_error:
-            try:
-                err = response.json()
-                detail = err.get("error", {}).get("message", str(response))
-            except Exception:
-                detail = response.text
-            raise ProviderError(response.status_code, detail)
-        return response.json()
+        async def _do_request():
+            response = await self.client.post(
+                f"{self.base_url}/chat/completions",
+                json=body,
+                headers=headers,
+            )
+            if response.is_error:
+                try:
+                    err = response.json()
+                    detail = err.get("error", {}).get("message", str(response))
+                except Exception:
+                    detail = response.text
+                raise ProviderError(response.status_code, detail)
+            return response.json()
+        return await _retry_with_backoff(_do_request)
 
     async def stream_chat(
         self,
@@ -82,29 +102,36 @@ class OpenAIProvider:
             "Content-Type": "application/json",
         }
 
-        async with httpx.AsyncClient(timeout=120) as client:
-            async with client.stream(
-                "POST",
-                f"{self.base_url}/chat/completions",
-                json=body,
-                headers=headers,
-            ) as response:
-                if response.is_error:
+        async def _do_connect():
+            c = httpx.AsyncClient(timeout=120)
+            r = await c.send(
+                httpx.Request("POST", f"{self.base_url}/chat/completions", json=body, headers=headers),
+                stream=True,
+            )
+            if r.is_error:
+                try:
+                    err_text = await r.aread()
+                    detail = json.loads(err_text).get("error", {}).get("message", str(r))
+                except Exception:
+                    detail = str(r)
+                await c.aclose()
+                raise ProviderError(r.status_code, detail)
+            return c, r
+
+        client, response = await _retry_with_backoff(_do_connect)
+        try:
+            async for line in response.aiter_lines():
+                if line.startswith("data: "):
+                    data = line[6:]
+                    if data.strip() == "[DONE]":
+                        break
                     try:
-                        err = await response.aread()
-                        detail = json.loads(err).get("error", {}).get("message", str(response))
-                    except Exception:
-                        detail = (await response.aread()).decode("utf-8", errors="replace")
-                    raise ProviderError(response.status_code, detail)
-                async for line in response.aiter_lines():
-                    if line.startswith("data: "):
-                        data = line[6:]
-                        if data.strip() == "[DONE]":
-                            break
-                        try:
-                            yield json.loads(data)
-                        except json.JSONDecodeError:
-                            continue
+                        yield json.loads(data)
+                    except json.JSONDecodeError:
+                        continue
+        finally:
+            await response.aclose()
+            await client.aclose()
 
     async def close(self):
         await self.client.aclose()

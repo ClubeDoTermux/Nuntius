@@ -2,7 +2,7 @@ import subprocess
 from pathlib import Path
 
 from ..config import load_config
-from .registry import BaseTool, register
+from .registry import BaseTool, register, with_cache, clear_cache as _clear_cache
 
 
 class ReadFile(BaseTool):
@@ -131,6 +131,7 @@ class Grep(BaseTool):
         return out
 
 
+@with_cache(ttl=3)
 class Glob(BaseTool):
     name = "glob"
     description = "Busca arquivos por padrao (ex: **/*.py)"
@@ -169,6 +170,19 @@ class Bash(BaseTool):
     }
 
     async def execute(self, command: str, workdir: str = "", timeout: int = 120) -> str:
+        cfg = load_config()
+        sec = cfg.get("security", {})
+        if sec.get("dangerous_command_protection", True):
+            cmd_lower = command.lower()
+            allowed = sec.get("allowed_commands", [])
+            blocked = sec.get("blocked_commands", [])
+            if allowed:
+                if not any(a.lower() in cmd_lower for a in allowed):
+                    return f"Comando bloqueado por seguranca: nenhum padrao em allowed_commands correspondeu. Para permitir, adicione o comando a allowed_commands no config.yaml."
+            else:
+                for pattern in blocked:
+                    if pattern.lower() in cmd_lower:
+                        return f"Comando bloqueado por seguranca: {pattern}. Para permitir, desative dangerous_command_protection no config.yaml ou adicione o comando a allowed_commands."
         cwd = workdir or "."
         timeout = min(timeout, 300)
         try:
@@ -184,6 +198,7 @@ class Bash(BaseTool):
             return f"Erro: {e}"
 
 
+@with_cache(ttl=3)
 class Ls(BaseTool):
     name = "ls"
     description = "Lista arquivos em um diretorio"
@@ -377,6 +392,30 @@ class Download(BaseTool):
     }
 
     async def execute(self, url: str, output: str = "") -> str:
+        from ..config import load_config
+        cfg = load_config()
+        if cfg.get("security", {}).get("block_internal_networks", True):
+            from urllib.parse import urlparse
+            import socket
+            hostname = urlparse(url).hostname
+            if hostname:
+                host_lower = hostname.lower()
+                if host_lower in ("localhost", "127.0.0.1", "0.0.0.0"):
+                    return "Acesso negado: URLs de rede interna nao sao permitidas por seguranca."
+                try:
+                    addrs = socket.getaddrinfo(host_lower, None)
+                    for family, type_, proto, canonname, sockaddr in addrs:
+                        ip = sockaddr[0]
+                        if ip.startswith("10.") or ip.startswith("169.254."):
+                            return "Acesso negado: URLs de rede interna nao sao permitidas por seguranca."
+                        if ip.startswith("172."):
+                            parts = ip.split(".")
+                            if len(parts) >= 2 and 16 <= int(parts[1]) <= 31:
+                                return "Acesso negado: URLs de rede interna nao sao permitidas por seguranca."
+                        if ip.startswith("192.168."):
+                            return "Acesso negado: URLs de rede interna nao sao permitidas por seguranca."
+                except Exception:
+                    pass
         import httpx
         if not output:
             output = Path(url).name or "download"

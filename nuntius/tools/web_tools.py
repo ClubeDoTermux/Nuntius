@@ -1,5 +1,6 @@
 import httpx
 
+from ..config import load_config
 from .registry import BaseTool, register
 
 
@@ -45,6 +46,29 @@ class WebFetch(BaseTool):
     }
 
     async def execute(self, url: str) -> str:
+        cfg = load_config()
+        if cfg.get("security", {}).get("block_internal_networks", True):
+            from urllib.parse import urlparse
+            import socket
+            hostname = urlparse(url).hostname
+            if hostname:
+                host_lower = hostname.lower()
+                if host_lower in ("localhost", "127.0.0.1", "0.0.0.0"):
+                    return "Acesso negado: URLs de rede interna nao sao permitidas por seguranca."
+                try:
+                    addrs = socket.getaddrinfo(host_lower, None)
+                    for family, type_, proto, canonname, sockaddr in addrs:
+                        ip = sockaddr[0]
+                        if ip.startswith("10.") or ip.startswith("169.254."):
+                            return "Acesso negado: URLs de rede interna nao sao permitidas por seguranca."
+                        if ip.startswith("172."):
+                            parts = ip.split(".")
+                            if len(parts) >= 2 and 16 <= int(parts[1]) <= 31:
+                                return "Acesso negado: URLs de rede interna nao sao permitidas por seguranca."
+                        if ip.startswith("192.168."):
+                            return "Acesso negado: URLs de rede interna nao sao permitidas por seguranca."
+                except Exception:
+                    pass
         try:
             async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
                 resp = await client.get(url, headers={"User-Agent": "Nuntius/1.0"})

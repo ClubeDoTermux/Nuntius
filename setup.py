@@ -11,6 +11,7 @@ setup(
         "rich>=13.0",
         "httpx>=0.25.0",
         "pyyaml>=6.0",
+        "prompt_toolkit>=3.0.0",
     ],
     extras_require={
         "mcp": ["mcp>=1.0.0"],
