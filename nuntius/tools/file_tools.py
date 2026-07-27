@@ -93,15 +93,42 @@ class Grep(BaseTool):
     }
 
     async def execute(self, pattern: str, path: str = ".", include: str = "") -> str:
-        cmd = ["grep", "-rn", "--color=never", pattern, path]
-        if include:
-            cmd.extend(["--include", include])
+        import re
+        root = Path(path).expanduser().resolve()
+        if not root.is_dir():
+            return f"Diretorio nao encontrado: {path}"
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-            out = result.stdout[:3000]
-            return out or "Nenhum resultado."
+            regex = re.compile(pattern)
+        except re.error as e:
+            return f"Erro na regex: {e}"
+        results = []
+        try:
+            for f in root.rglob("*"):
+                if f.is_file():
+                    if include:
+                        import fnmatch
+                        if not fnmatch.fnmatch(f.name, include):
+                            continue
+                    try:
+                        text = f.read_text(encoding="utf-8", errors="replace")
+                        for i, line in enumerate(text.splitlines(), 1):
+                            if regex.search(line):
+                                rel = str(f.relative_to(root))
+                                results.append(f"{rel}:{i}:{line[:200]}")
+                                if len(results) >= 100:
+                                    break
+                    except Exception:
+                        pass
+                if len(results) >= 100:
+                    break
         except Exception as e:
             return f"Erro: {e}"
+        if not results:
+            return "Nenhum resultado."
+        out = "\n".join(results)
+        if len(out) > 3000:
+            out = out[:3000] + "\n... (truncado)"
+        return out
 
 
 class Glob(BaseTool):

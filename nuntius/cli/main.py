@@ -28,6 +28,7 @@ from ..version import VERSION, get_local_commit, get_local_branch
 
 GOLD = "gold1"
 CYAN = "cyan"
+ACCENT = "bold cyan"
 MAGENTA = "magenta"
 DIM = "grey62"
 GREEN = "green"
@@ -423,7 +424,7 @@ async def interactive_chat():
                     skills = agent.skills.list_skills()
                     if skills:
                         console.print(Panel(
-                            "\n".join(f"  {GREEN}\u2713{NC} {s}" for s in skills),
+                            "\n".join(f"  [{GREEN}]\u2713[/] {s}" for s in skills),
                             title="Skills Aprendidas",
                             border_style=GOLD,
                         ))

@@ -80,7 +80,7 @@ print_banner() {
     echo -e "${GREEN}╠═══════════════════════════════════════════════════════════╣${NC}"
     echo -e "${YELLOW}  █ Provedor: ${GREEN}OpenAI${NC}        ${YELLOW}█ Modelo: ${GREEN}gpt-4o-mini${NC}"
     echo -e "${GREEN}╚═══════════════════════════════════════════════════════════╝${NC}"
-    echo -e "${CIANO}github.com/ClubeDoTermux/Nuntius ${NC}"
+    echo -e "${CYAN}github.com/ClubeDoTermux/Nuntius ${NC}"
     echo ""
 }
 
