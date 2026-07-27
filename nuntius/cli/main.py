@@ -404,7 +404,7 @@ async def interactive_chat():
     try:
         while True:
             try:
-                user_input = session.prompt("\n\x1b[1mVoce\x1b[0m ")
+                user_input = await session.prompt_async("\n\x1b[1mVoce\x1b[0m ")
             except (EOFError, KeyboardInterrupt):
                 break
             if not user_input:
