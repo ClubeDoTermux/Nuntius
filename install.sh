@@ -207,13 +207,13 @@ check_python() {
 
 check_pip() {
     log_info "Verificando pip..."
-    PIP="$($PYTHON -m pip --version 2>/dev/null && echo "$PYTHON -m pip")"
-    if [ -z "$PIP" ]; then
-        if command -v pip3 &>/dev/null; then
-            PIP="pip3"
-        elif command -v pip &>/dev/null; then
-            PIP="pip"
-        fi
+    PIP=""
+    if $PYTHON -m pip --version >/dev/null 2>&1; then
+        PIP="$PYTHON -m pip"
+    elif command -v pip3 &>/dev/null; then
+        PIP="pip3"
+    elif command -v pip &>/dev/null; then
+        PIP="pip"
     fi
 
     if [ -z "$PIP" ]; then
@@ -263,16 +263,15 @@ clone_repo() {
 install_python_deps() {
     log_info "Instalando dependencias Python..."
 
-    if [ "$DISTRO" = "termux" ]; then
-        $PIP install --upgrade pip setuptools wheel 2>/dev/null || true
-        $PIP install --break-system-packages -e "$INSTALL_DIR" 2>/dev/null ||
-        $PIP install -e "$INSTALL_DIR" 2>/dev/null ||
-        $PIP install --user -e "$INSTALL_DIR"
-    elif [ "$OS" = "linux" ]; then
-        $PIP install --break-system-packages -e "$INSTALL_DIR" 2>/dev/null ||
-        $PIP install -e "$INSTALL_DIR"
+    $PIP install --upgrade pip setuptools wheel 2>/dev/null || true
+
+    # Tenta instalar com flags diferentes dependendo do sistema
+    if $PIP install --break-system-packages -e "$INSTALL_DIR" 2>/dev/null; then
+        :
+    elif $PIP install -e "$INSTALL_DIR" 2>/dev/null; then
+        :
     else
-        $PIP install -e "$INSTALL_DIR"
+        $PIP install --user -e "$INSTALL_DIR"
     fi
 
     log_success "Dependencias Python instaladas"
@@ -397,7 +396,7 @@ cfg = {**defaults, **existing}
 cfg["provider"] = "$provider"
 cfg["model"] = "$model"
 if "$api_key":
-    cfg["provices"]["$provider"]["api_key"] = "$api_key"
+    cfg["providers"]["$provider"]["api_key"] = "$api_key"
 
 with open(config_path, "w") as f:
     yaml.dump(cfg, f, default_flow_style=False)
