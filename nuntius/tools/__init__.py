@@ -12,6 +12,11 @@ from . import scheduler_tools
 from . import orchestrator_tools
 
 try:
+    from . import routing_tools
+except ImportError:
+    pass
+
+try:
     from . import github_tools
 except ImportError:
     pass

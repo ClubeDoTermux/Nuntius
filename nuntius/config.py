@@ -181,6 +181,29 @@ DEFAULT_CONFIG = {
         "blocked_commands": ["sudo rm", "rm -rf /", "rm -rf /*", "mkfs", "dd if=", "> /dev/sd", "chmod 777 /", "wget -O- | sh", "curl | sh", "mv / ", ":(){ :|:& };:"],
     },
     "auto_learn": {"enabled": True},
+    "routing": {
+        "enabled": False,
+        "roles": {
+            "code": {"provider": "", "model": ""},
+            "shell": {"provider": "", "model": ""},
+            "search": {"provider": "", "model": ""},
+            "writer": {"provider": "", "model": ""},
+            "debug": {"provider": "", "model": ""},
+            "analysis": {"provider": "", "model": ""},
+            "plan": {"provider": "", "model": ""},
+            "review": {"provider": "", "model": ""},
+        },
+        "patterns": [
+            {"pattern": "\\b(python|javascript|typescript|rust|go|java|c\\+\\+|ruby|php|implement|criar|create|function|classe|class|api|endpoint)\\b", "role": "code"},
+            {"pattern": "\\b(bash|shell|terminal|comando|command|install|pkg|apt|pip|npm)\\b", "role": "shell"},
+            {"pattern": "\\b(search|pesquisar|google|find|buscar|lookup|pesquisa)\\b", "role": "search"},
+            {"pattern": "\\b(write|escrever|document|texto|artigo|post|blog|email)\\b", "role": "writer"},
+            {"pattern": "\\b(debug|error|erro|bug|fix|corrigir|fail|exception|traceback|crash)\\b", "role": "debug"},
+            {"pattern": "\\b(analyze|analisar|analise|metrics|estatisticas|stats|compared|compare)\\b", "role": "analysis"},
+            {"pattern": "\\b(plan|planejar|arquitetura|architecture|design|estrutura|structure|projeto)\\b", "role": "plan"},
+            {"pattern": "\\b(review|revisar|code.?review|pr|pull.?request|quality|qualidade)\\b", "role": "review"},
+        ],
+    },
     "memory": {"enabled": True, "db_path": str(DATA_DIR / "nuntius.db"), "vector_enabled": True, "vector_path": str(DATA_DIR / "chroma"), "auto_retrieval": True, "retrieval_count": 3},
     "tools": {"enabled": True},
     "plugins": {"enabled": True, "plugins_dir": str(CONFIG_DIR / "plugins")},
@@ -209,7 +232,7 @@ def load_config() -> dict:
                 merged["providers"][k].update(v)
             else:
                 merged["providers"][k] = v
-    for key in ("provider", "model", "memory", "tools", "platforms", "mcp_servers", "security", "auto_learn", "plugins"):
+    for key in ("provider", "model", "memory", "tools", "platforms", "mcp_servers", "security", "auto_learn", "plugins", "routing"):
         if key in user:
             merged[key] = user[key]
     log_level = merged.get("log_level", "WARNING")

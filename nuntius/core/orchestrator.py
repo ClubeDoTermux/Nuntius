@@ -1,6 +1,8 @@
 import logging
 import uuid
 
+from ..routing import get_resolver
+
 logger = logging.getLogger("nuntius.orchestrator")
 
 
@@ -45,11 +47,36 @@ class Orchestrator:
             from nuntius.agents.subagent import SubAgent
 
         cfg = self.config if isinstance(self.config, dict) else load_config()
+
+        resolver = get_resolver(cfg)
+        provider_override = None
+        model_override = ""
+        provider_name_override = ""
+
+        if resolver.is_enabled():
+            if role:
+                prov_name, model, prov = resolver.resolve_role(role)
+                if prov:
+                    provider_override = prov
+                    model_override = model
+                    provider_name_override = prov_name
+            if not provider_override:
+                prov_name, model, prov, matched_role = resolver.resolve_task(task)
+                if prov:
+                    provider_override = prov
+                    model_override = model
+                    provider_name_override = prov_name
+                    if matched_role and not role:
+                        role = matched_role
+
         sub = SubAgent(
             role=role,
             system_prompt=system_prompt,
             tools=tools,
             config=cfg,
+            provider=provider_override,
+            model=model_override,
+            provider_name=provider_name_override,
         )
         self._agent_instances[agent_id] = sub
 
@@ -69,16 +96,21 @@ class Orchestrator:
             await sub.close()
 
     def list_subagents(self) -> list[dict]:
-        return [
-            {
+        result = []
+        for sid, info in self.subagents.items():
+            entry = {
                 "id": sid,
                 "role": info.role,
                 "task": info.task[:80],
                 "status": info.status,
                 "result_len": len(info.result),
             }
-            for sid, info in self.subagents.items()
-        ]
+            agent = self._agent_instances.get(sid)
+            if agent:
+                entry["model"] = getattr(agent, "model", "?")
+                entry["provider"] = agent.provider_name
+            result.append(entry)
+        return result
 
     def get_result(self, agent_id: str) -> str:
         info = self.subagents.get(agent_id)

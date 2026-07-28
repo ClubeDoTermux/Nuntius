@@ -28,6 +28,7 @@ from textual.widgets import (
 
 from ..config import PROVIDER_INFO, load_config, save_config
 from ..core.agent import Agent
+from ..routing import get_resolver
 from ..tools import registry
 from ..version import VERSION, get_local_commit
 from .theme import get_theme, get_theme_css, list_themes
@@ -200,6 +201,35 @@ class HelpScreen(ModalScreen):
             self.dismiss()
 
 
+class RoutingScreen(ModalScreen):
+    def compose(self):
+        cfg = load_config()
+        resolver = get_resolver(cfg)
+        with Vertical(id="tools-screen"):
+            yield Static("[bold]Roteamento de Agentes por Modelo[/bold]", classes="screen-title")
+            if not resolver.is_enabled():
+                yield Static("[yellow]Roteamento desabilitado.[/yellow]", classes="screen-subtitle")
+                yield Static("Ative em config.yaml: routing.enabled: true")
+            else:
+                routes = resolver.routing_summary()
+                if not routes:
+                    yield Static("[dim]Nenhuma rota configurada.[/dim]")
+                else:
+                    table = Table(border_style="dim", expand=True)
+                    table.add_column("Funcao", style="bold gold1")
+                    table.add_column("Provedor", style="cyan")
+                    table.add_column("Modelo", style="green")
+                    table.add_column("Descricao", style="dim")
+                    for r in routes:
+                        table.add_row(r["role"], r["provider"], r["model"], r.get("description", ""))
+                    yield Static(table)
+            yield Button("Fechar", variant="primary", id="close-routing")
+
+    def on_button_pressed(self, event):
+        if event.button.id == "close-routing":
+            self.dismiss()
+
+
 class NuntiusApp(App):
     CSS = """
     Screen {
@@ -360,9 +390,12 @@ class NuntiusApp(App):
         save_config(cfg)
 
     def update_header(self):
+        cfg = load_config()
+        routing_enabled = cfg.get("routing", {}).get("enabled", False)
+        routing_tag = " [R]" if routing_enabled else ""
         header = self.query_one("#tool-header", Static)
         header.update(
-            f"[bold]{self.current_provider}[/bold] | [bold]{self.current_model}[/bold]\n"
+            f"[bold]{self.current_provider}[/bold] | [bold]{self.current_model}[/bold]{routing_tag}\n"
             f"[dim]v{VERSION} | msgs: {self.session_messages}[/dim]"
         )
 
@@ -405,8 +438,12 @@ class NuntiusApp(App):
         content.update("\n".join(tool_lines) if tool_lines else "[dim]Nenhuma ferramenta[/dim]")
 
         footer = self.query_one("#tool-footer", Static)
+        cfg = load_config()
+        routing_enabled = cfg.get("routing", {}).get("enabled", False)
         if tool_name:
-            footer.update(f"[bold]ultima tool:[/bold] [cyan]{tool_name}[/]")
+            footer.update(f"[bold]ultima tool:[/bold] [cyan]{tool_name}[/]" + (" | [yellow]R[/]" if routing_enabled else ""))
+        else:
+            footer.update("[yellow]R[/]: routing ativo" if routing_enabled else "")
 
     async def on_input_submitted(self, event: Input.Submitted):
         if self._processing:
@@ -533,6 +570,8 @@ class NuntiusApp(App):
             self.push_screen(ProviderScreen())
         elif cmd in ("tools", "ferramentas"):
             self.push_screen(ToolsScreen())
+        elif cmd == "routing":
+            self.push_screen(RoutingScreen())
         elif cmd == "theme":
             self.push_screen(ThemeScreen())
         elif cmd == "export":

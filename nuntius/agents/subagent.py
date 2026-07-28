@@ -25,6 +25,7 @@ class SubAgent:
         provider=None,
         model: str = "",
         config: dict | None = None,
+        provider_name: str = "",
     ):
         self.role = role or "assistant"
         self.config = config or load_config()
@@ -40,16 +41,22 @@ class SubAgent:
 
         if provider:
             self.provider = provider
+            self._provider_name = provider_name or self.config.get("provider", "openai")
         else:
-            pname = self.config.get("provider", "openai")
-            provider_cfg = get_active_provider(self.config)
+            pname = provider_name or self.config.get("provider", "openai")
+            provider_cfg = self.config.get("providers", {}).get(pname, get_active_provider(self.config))
             self.provider = ProviderRegistry.create(
                 pname,
                 api_key=provider_cfg.get("api_key", ""),
                 base_url=provider_cfg.get("base_url", ""),
             )
+            self._provider_name = pname
 
         self.model = model or self.config.get("model", "gpt-4o-mini")
+        if provider_name:
+            role_cfg = self.config.get("routing", {}).get("roles", {}).get(role, {})
+            if not model and role_cfg.get("model"):
+                self.model = role_cfg["model"]
 
         sys_msg = {"role": "system", "content": self.system_prompt}
         self.messages.append(sys_msg)
@@ -72,6 +79,10 @@ class SubAgent:
         if not filtered:
             return "(nenhuma ferramenta disponivel)"
         return "\n".join(f"- {t.name}: {t.description}" for t in filtered)
+
+    @property
+    def provider_name(self) -> str:
+        return getattr(self, "_provider_name", self.config.get("provider", "openai"))
 
     async def run(self, task: str, stream: bool = False) -> str:
         self.messages.append({"role": "user", "content": task})

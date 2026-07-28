@@ -120,6 +120,37 @@ Mais de 14 provedores suportados! Destaques:
 | Anthropic Claude | ❌ | console.anthropic.com |
 | Fireworks AI | ✅ | fireworks.ai |
 
+### Roteamento Inteligente por Modelo
+
+Atribua diferentes modelos a diferentes tarefas automaticamente:
+
+```yaml
+# config.yaml
+routing:
+  enabled: true
+  roles:
+    code:
+      provider: "deepseek"
+      model: "deepseek-chat"
+    search:
+      provider: "groq"
+      model: "llama3-70b-8192"
+    writer:
+      provider: "openai"
+      model: "gpt-4o-mini"
+```
+
+**Como funciona:**
+- O `RouteResolver` analisa a tarefa e identifica o role (code, search, writer, debug, etc.)
+- O subagente é criado com o provedor/modelo específico do role
+- Se desabilitado, usa o provedor/modelo global padrão
+
+**Comandos:**
+- `/routing` no chat TUI/CLI - mostra as rotas configuradas
+- `set_route(role, provider, model)` - configura uma rota via ferramenta
+
+**Funções pré-definidas:** code, shell, search, writer, debug, analysis, plan, review
+
 ## Ferramentas do Agente
 
 O Nuntius possui ferramentas para:

@@ -679,13 +679,35 @@ async def interactive_chat():
                     tbl = Table(title="Subagentes", border_style="cyan")
                     tbl.add_column("ID", style="cyan")
                     tbl.add_column("Funcao", style=GOLD)
+                    tbl.add_column("Provedor", style="green")
+                    tbl.add_column("Modelo", style="green")
                     tbl.add_column("Tarefa", style="white")
                     tbl.add_column("Status")
                     for a in agents:
                         s = a["status"]
                         status_icon = "[green]done[/]" if s == "done" else "[yellow]running[/]" if s == "running" else "[red]error[/]"
-                        tbl.add_row(a["id"], a["role"], a["task"][:50], status_icon)
+                        tbl.add_row(a["id"], a["role"], a.get("provider", ""), a.get("model", ""), a["task"][:50], status_icon)
                     console.print(tbl)
+                    continue
+                elif cmd == "routing":
+                    from ..routing import get_resolver
+                    resolver = get_resolver(load_config())
+                    if not resolver.is_enabled():
+                        console.print("[yellow]Roteamento desabilitado.[/yellow]")
+                        console.print("Ative em config.yaml: routing.enabled: true")
+                    else:
+                        routes = resolver.routing_summary()
+                        if not routes:
+                            console.print("[dim]Nenhuma rota configurada.[/dim]")
+                        else:
+                            tbl = Table(title="Roteamento por Modelo", border_style=GOLD)
+                            tbl.add_column("Funcao", style=GOLD)
+                            tbl.add_column("Provedor", style="cyan")
+                            tbl.add_column("Modelo", style="green")
+                            tbl.add_column("Descricao", style="dim")
+                            for r in routes:
+                                tbl.add_row(r["role"], r["provider"], r["model"], r.get("description", ""))
+                            console.print(tbl)
                     continue
                 elif cmd in ("good", "bom", "ok"):
                     if agent.learning_loop:
