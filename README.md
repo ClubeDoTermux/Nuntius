@@ -39,10 +39,12 @@ nuntius setup
 | `nuntius setup` | Configura provedor, modelo e API Key |
 | `nuntius run <mensagem>` | Executa uma mensagem única e sai |
 | `nuntius model` | Mostra/altera o provedor e modelo ativos |
-| `nuntius gateway` | Inicia o gateway para Telegram/Discord |
-| `nuntius platform enable <nome>` | Habilita uma plataforma |
+| `nuntius gateway` | Inicia o gateway multi-plataforma |
+| `nuntius platform list` | Lista plataformas disponíveis e status |
+| `nuntius platform enable <nome>` | Habilita e configura uma plataforma |
 | `nuntius platform disable <nome>` | Desabilita uma plataforma |
 | `nuntius mcp <nome>` | Configura servidor MCP |
+| `nuntius tui` | Interface TUI avançada com painéis, temas e atalhos |
 | `nuntius version` | Mostra a versão e banner |
 
 ## Comandos do Chat
@@ -76,6 +78,32 @@ mcp_servers:
     enabled: true
 ```
 
+### TUI Avancada (Textual)
+
+Uma interface TUI moderna com painel dividido, temas customizaveis e atalhos de teclado.
+
+```bash
+pip install nuntius[tui]
+nuntius tui
+```
+
+**Layout:**
+- **Painel esquerdo (70%)**: Historico da conversa com mensagens do usuario, assistente e ferramentas
+- **Painel direito (30%)**: Status do provedor/modelo, ferramentas disponiveis, estatisticas da sessao
+
+**Atalhos:**
+| Atalho | Acao |
+|---|---|
+| `Ctrl+P` | Configurar provedor/modelo |
+| `Ctrl+T` | Listar ferramentas |
+| `Ctrl+N` | Nova conversa |
+| `Ctrl+L` | Limpar chat |
+| `Ctrl+E` | Exportar conversa |
+| `Ctrl+H` | Ajuda |
+| `Ctrl+Q` | Sair |
+
+**Temas:** 6 temas inclusos (Nuntius, Dracula, Monokai, Nord, Light, Gruvbox) com preview ao vivo. Use `/theme` no chat ou o atalho no seletor de temas.
+
 ### Provedores
 Mais de 14 provedores suportados! Destaques:
 
@@ -106,12 +134,52 @@ O Nuntius possui ferramentas para:
 
 ## Plataformas
 
-| Plataforma | Comando para ativar |
-|---|---|
-| Telegram | `nuntius platform enable telegram` |
-| Discord | `nuntius platform enable discord` |
-| GitHub | `nuntius platform enable github` |
-| Google Drive | `nuntius platform enable drive` |
+O Nuntius suporta **12+ plataformas de mensageria** com uma arquitetura plugável. Cada plataforma é um adaptador independente que se registra automaticamente.
+
+### Gateway Multi-Plataforma
+
+| Plataforma | Tipo | Dependência | Ativação |
+|---|---|---|---|
+| Telegram | Bot | `python-telegram-bot` | `nuntius platform enable telegram` |
+| Discord | Bot | `discord.py` | `nuntius platform enable discord` |
+| Slack | Bot | `slack-bolt` | `nuntius platform enable slack` |
+| WhatsApp | Cloud API | `aiohttp` | `nuntius platform enable whatsapp` |
+| Matrix | Bot | `matrix-nio` | `nuntius platform enable matrix` |
+| E-mail | IMAP/SMTP | (built-in) | `nuntius platform enable email` |
+| Signal | signal-cli | `signal-cli` | `nuntius platform enable signal` |
+| Microsoft Teams | Webhook | `aiohttp` | `nuntius platform enable teams` |
+| Google Chat | Webhook | `aiohttp` | `nuntius platform enable googlechat` |
+| LINE | Messaging API | `aiohttp` | `nuntius platform enable line` |
+| IRC | Protocolo | `irctokens` | `nuntius platform enable irc` |
+| Webhook Genérico | HTTP | `aiohttp` | `nuntius platform enable webhook` |
+| GitHub | API Client | `PyGithub` | `nuntius platform enable github` |
+| Google Drive | API Client | `google-*` | `nuntius platform enable drive` |
+
+### Como usar
+
+```bash
+# Listar plataformas disponíveis
+nuntius platform list
+
+# Habilitar uma plataforma (o CLI pergunta as credenciais)
+nuntius platform enable telegram
+
+# Iniciar o gateway com todas as plataformas habilitadas
+nuntius gateway
+```
+
+### Instalar dependências por plataforma
+
+```bash
+pip install nuntius[telegram]    # Apenas Telegram
+pip install nuntius[discord]     # Apenas Discord
+pip install nuntius[platforms]   # Todas as plataformas de mensageria
+pip install nuntius[all]         # Tudo (incluindo MCP, browser, etc)
+```
+
+### Arquitetura
+
+Cada plataforma estende `PlatformBase` e se autoregistra no registry. O Gateway descobre dinamicamente todos os adaptadores instalados e inicia apenas os habilitados no `config.yaml`. Adaptadores com dependências faltantes são ignorados graciosamente.
 
 ## Licença
 

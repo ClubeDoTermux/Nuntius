@@ -12,6 +12,10 @@ prompt_toolkit>=3.0.0
 # Plataformas (opcionais)
 # python-telegram-bot>=20.0
 # discord.py>=2.0
+# slack-bolt>=1.18.0
+# aiohttp>=3.9.0
+# matrix-nio>=0.25.0
+# irctokens>=3.0.0
 # PyGithub>=1.58
 # google-api-python-client>=2.0
 # google-auth-oauthlib>=1.0

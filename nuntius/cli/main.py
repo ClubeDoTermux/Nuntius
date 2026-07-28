@@ -35,6 +35,7 @@ from ..config import (
     save_config,
 )
 from ..core.agent import Agent
+from ..platforms import list_platforms, load_platform
 from ..platforms.gateway import Gateway
 from ..providers.openai import ProviderError
 from ..version import VERSION, get_local_commit, get_local_branch
@@ -262,7 +263,7 @@ def model():
 
 @cli.command()
 def gateway():
-    """Inicia o gateway para Telegram/Discord."""
+    """Inicia o gateway multi-plataforma (Telegram, Discord, Slack, WhatsApp, etc)."""
     cfg = load_config()
     p = cfg.get("platforms", {})
     enabled = [k for k, v in p.items() if isinstance(v, dict) and v.get("enabled")]
@@ -276,33 +277,84 @@ def gateway():
 
 @cli.group()
 def platform():
-    """Configura plataformas (Telegram, Discord, etc)."""
+    """Configura plataformas (Telegram, Discord, Slack, WhatsApp, etc)."""
+
+
+@platform.command(name="list")
+def list_platforms_cmd():
+    """Lista todas as plataformas disponiveis e seus status."""
+    _list_platforms_cmd()
+
+
+def _list_platforms_cmd():
+    cfg = load_config()
+    platforms = cfg.get("platforms", {})
+    if not platforms:
+        console.print("[yellow]Nenhuma plataforma configurada.[/yellow]")
+        return
+    from rich.table import Table
+    tbl = Table(title="Plataformas", border_style=GOLD, header_style=GOLD)
+    tbl.add_column("Plataforma", style=GOLD)
+    tbl.add_column("Status")
+    tbl.add_column("Descricao", style=DIM)
+    registered = list_platforms()
+    for name in sorted(platforms.keys()):
+        info = registered.get(name)
+        desc = info.description if info else ""
+        pcfg = platforms[name]
+        is_enabled = pcfg.get("enabled", False) if isinstance(pcfg, dict) else False
+        status = "[green]Ativo[/green]" if is_enabled else "[dim]Inativo[/dim]"
+        tbl.add_row(name, status, desc)
+    console.print(tbl)
+    console.print("\n[dim]Use: nuntius platform enable [italic]nome[/italic][/dim]")
 
 
 @platform.command()
 @click.argument("name")
 def enable(name: str):
-    """Habilita uma plataforma (telegram, discord, github, drive)."""
+    """Habilita e configura uma plataforma."""
     cfg = load_config()
     name = name.lower()
-    if name not in cfg.get("platforms", {}):
+    platforms_cfg = cfg.get("platforms", {})
+    if name not in platforms_cfg:
         console.print(f"[red]Plataforma desconhecida: {name}[/red]")
+        known = sorted(platforms_cfg.keys())
+        console.print(f"[dim]Plataformas disponiveis: {', '.join(known)}[/dim]")
         return
-    platform_cfg = cfg["platforms"][name]
+    platform_cfg = platforms_cfg[name]
     platform_cfg["enabled"] = True
 
-    if name == "telegram":
-        token = Prompt.ask("Token do Telegram", default=platform_cfg.get("token", ""))
-        platform_cfg["token"] = token
-    elif name == "discord":
-        token = Prompt.ask("Token do Discord", default=platform_cfg.get("token", ""))
-        platform_cfg["token"] = token
-    elif name == "github":
-        token = Prompt.ask("Token do GitHub", default=platform_cfg.get("token", ""))
-        platform_cfg["token"] = token
-    elif name == "drive":
-        creds = Prompt.ask("Caminho do credentials.json", default=platform_cfg.get("credentials_path", ""))
-        platform_cfg["credentials_path"] = creds
+    registered = list_platforms()
+    info = registered.get(name)
+
+    if info and info.config_schema:
+        for key, schema in info.config_schema.items():
+            current = platform_cfg.get(key, "")
+            hint = schema.get("description", key)
+            required = schema.get("required", False)
+            default_val = current if current else ("" if required else schema.get("default", ""))
+            if schema.get("type") == "boolean":
+                platform_cfg[key] = click.confirm(f"[{GOLD}]{hint}[/{GOLD}]", default=current or False)
+            elif schema.get("type") == "integer":
+                val = Prompt.ask(f"[{GOLD}]{hint}[/{GOLD}]", default=str(default_val) if default_val != "" else "")
+                platform_cfg[key] = int(val) if val else default_val
+            elif schema.get("type") == "array":
+                val = Prompt.ask(f"[{GOLD}]{hint}[/{GOLD}] (separados por virgula)", default=",".join(current) if isinstance(current, list) else str(current))
+                platform_cfg[key] = [v.strip() for v in val.split(",") if v.strip()]
+            else:
+                val = Prompt.ask(f"[{GOLD}]{hint}[/{GOLD}]", default=str(default_val) if default_val != "" else "")
+                platform_cfg[key] = val
+    else:
+        for key in platform_cfg:
+            if key == "enabled":
+                continue
+            current = platform_cfg[key]
+            default_str = str(current) if current else ""
+            val = Prompt.ask(f"[{GOLD}]{key}[/{GOLD}]", default=default_str)
+            platform_cfg[key] = val
+
+    if info and info.extra_help:
+        console.print(f"[dim]{info.extra_help}[/dim]")
 
     save_config(cfg)
     console.print(f"[green]Plataforma '{name}' habilitada![/green]")
@@ -317,6 +369,8 @@ def disable(name: str):
         cfg["platforms"][name]["enabled"] = False
         save_config(cfg)
         console.print(f"[yellow]Plataforma '{name}' desabilitada.[/yellow]")
+    else:
+        console.print(f"[red]Plataforma desconhecida: {name}[/red]")
 
 
 @cli.command()
@@ -342,6 +396,21 @@ def mcp(name: str):
     server["args"] = args_str.split() if args_str else []
     save_config(cfg)
     console.print(f"[green]Servidor MCP '{name}' configurado![/green]")
+
+
+@cli.command()
+def tui():
+    """Interface TUI avancada com painel dividido."""
+    try:
+        from nuntius.tui import NuntiusApp
+        app = NuntiusApp()
+        app.run()
+    except ImportError as e:
+        console.print("[red]TUI nao disponivel. Instale textual:[/red]")
+        console.print("[yellow]pip install nuntius[tui][/yellow]")
+        console.print(f"[dim]{e}[/dim]")
+    except Exception as e:
+        console.print(f"[red]Erro ao iniciar TUI: {e}[/red]")
 
 
 @cli.command()
