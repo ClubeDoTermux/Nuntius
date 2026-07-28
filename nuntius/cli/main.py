@@ -444,7 +444,9 @@ async def interactive_chat():
                                 ("/forget nome", "cyan"),
                                 ("  Remove uma skill", DIM), ("\n", ""),
                                 ("/mcp ", ACCENT),
-                                ("  Mostra status dos servidores MCP", DIM),
+                                ("  Mostra status dos servidores MCP", DIM), ("\n", ""),
+                                ("/subagents ", "cyan"),
+                                ("  Lista subagentes ativos", DIM),
                             ),
                             Rule(style=DIM),
                             Text.assemble(
@@ -596,6 +598,24 @@ async def interactive_chat():
                     for p in plugins:
                         status = f"[red]Erro[/]" if p.error else "[green]OK[/]"
                         tbl.add_row(p.name, p.path, status)
+                    console.print(tbl)
+                    continue
+                elif cmd in ("subagents", "agents", "sub"):
+                    from ..tools.orchestrator_tools import _get_orch
+                    orch = _get_orch()
+                    agents = orch.list_subagents()
+                    if not agents:
+                        console.print("[dim]Nenhum subagente ativo.[/dim]")
+                        continue
+                    tbl = Table(title="Subagentes", border_style="cyan")
+                    tbl.add_column("ID", style="cyan")
+                    tbl.add_column("Funcao", style=GOLD)
+                    tbl.add_column("Tarefa", style="white")
+                    tbl.add_column("Status")
+                    for a in agents:
+                        s = a["status"]
+                        status_icon = "[green]done[/]" if s == "done" else "[yellow]running[/]" if s == "running" else "[red]error[/]"
+                        tbl.add_row(a["id"], a["role"], a["task"][:50], status_icon)
                     console.print(tbl)
                     continue
                 elif cmd in ("good", "bom", "ok"):

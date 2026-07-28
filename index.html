@@ -475,6 +475,11 @@
         <p>Agende tarefas no cron do sistema. Comandos /schedule, /scheduled, /cron</p>
       </div>
       <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(64,208,224,0.12);color:var(--cyan)">🧩</div>
+        <h3>Subagentes Isolados</h3>
+        <p>Delegue tarefas a subagentes com contexto, ferramentas e system prompt próprios. Roles: code, shell, search, writer, debug</p>
+      </div>
+      <div class="feature-card">
         <div class="feature-icon" style="background:rgba(176,96,224,0.12);color:var(--purple)">📚</div>
         <h3>Aprendizado Contínuo</h3>
         <p>Auto-aprendizado com avaliação de sucesso/fracasso. /good, /bad, /feedback</p>
@@ -614,6 +619,22 @@
           <p><code>list_scheduled_tasks()</code> — Lista tarefas agendadas</p>
           <p><code>remove_scheduled_task(task_id)</code> — Remove tarefa</p>
           <p><code>clear_scheduled_tasks()</code> — Remove todas as tarefas Nuntius</p>
+        </div>
+      </div>
+
+      <div class="cmd-group">
+        <div class="cmd-header" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+          <h3><span class="cmd-badge badge-tool">Ferramentas</span> Subagentes & Orquestração</h3>
+          <span style="color:var(--text2)">▼</span>
+        </div>
+        <div class="cmd-body" style="display:none">
+          <p><code>delegate(task, role, tools)</code> — Delega tarefa a subagente isolado</p>
+          <div class="cmd-example">delegate(task="Crie um script Python para backup", role="code")</div>
+          <div class="cmd-example">delegate(task="Pesquise sobre API do GitHub", role="search", tools=["web_search", "web_fetch"])</div>
+          <p><code>list_subagents()</code> — Lista subagentes ativos e status</p>
+          <p><code>/subagents</code> <code>/agents</code> — Lista subagentes no chat</p>
+          <p><strong>Roles nativas:</strong> <code>code</code> <code>shell</code> <code>search</code> <code>writer</code> <code>debug</code></p>
+          <p>Cada subagente tem contexto isolado, system prompt próprio e conjunto limitado de ferramentas.</p>
         </div>
       </div>
 

@@ -9,6 +9,7 @@ except ImportError:
     pass
 
 from . import scheduler_tools
+from . import orchestrator_tools
 
 try:
     from . import github_tools

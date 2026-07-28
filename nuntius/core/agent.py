@@ -328,3 +328,8 @@ class Agent:
             await close_browser()
         except Exception:
             pass
+        try:
+            from ..tools.orchestrator_tools import close_orchestrator
+            await close_orchestrator()
+        except Exception:
+            pass
