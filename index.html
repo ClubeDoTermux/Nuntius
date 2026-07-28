@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nuntius AI — O Mensageiro da IA no Terminal</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1a1a28;
+    --border: #2a2a3e;
+    --text: #e4e4f0;
+    --text2: #8888a0;
+    --gold: #f0c040;
+    --gold-dim: #a08030;
+    --cyan: #40d0e0;
+    --green: #50d080;
+    --red: #e05050;
+    --purple: #b060e0;
+    --radius: 12px;
+    --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .container { max-width: 1000px; margin: 0 auto; padding: 0 24px; }
+
+  /* Hero */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 40px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(240,192,64,0.06) 0%, transparent 70%);
+    top: -200px; right: -200px;
+    pointer-events: none;
+  }
+
+  .hero::after {
+    content: '';
+    position: absolute;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(64,208,224,0.05) 0%, transparent 70%);
+    bottom: -200px; left: -200px;
+    pointer-events: none;
+  }
+
+  .logo {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(2.5rem, 8vw, 5rem);
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--gold), var(--cyan));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -2px;
+    margin-bottom: 12px;
+    position: relative;
+  }
+
+  .logo-sub {
+    font-size: clamp(1rem, 2.5vw, 1.4rem);
+    color: var(--text2);
+    font-weight: 300;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    margin-bottom: 32px;
+  }
+
+  .banner-art {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(0.45rem, 1.2vw, 0.7rem);
+    color: var(--gold-dim);
+    line-height: 1.15;
+    white-space: pre;
+    margin: 24px 0;
+    opacity: 0.6;
+    user-select: none;
+  }
+
+  .hero-tagline {
+    font-size: clamp(1rem, 2vw, 1.2rem);
+    color: var(--text2);
+    max-width: 600px;
+    margin-bottom: 40px;
+  }
+
+  .hero-buttons {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 32px;
+    border-radius: var(--radius);
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: var(--transition);
+    border: 1px solid transparent;
+    cursor: pointer;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--gold), #d4a020);
+    color: #0a0a0f;
+    border-color: var(--gold);
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(240,192,64,0.25); }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--text);
+    border-color: var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--text2); transform: translateY(-2px); }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text2);
+    border-color: transparent;
+  }
+  .btn-ghost:hover { color: var(--text); }
+
+  .scroll-indicator {
+    position: absolute;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    animation: bounce 2s infinite;
+    color: var(--text2);
+    font-size: 1.5rem;
+  }
+
+  @keyframes bounce {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50% { transform: translateX(-50%) translateY(8px); }
+  }
+
+  /* Sections */
+  section { padding: 80px 0; }
+
+  .section-title {
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .section-subtitle {
+    color: var(--text2);
+    font-size: 1rem;
+    margin-bottom: 48px;
+  }
+
+  .section-divider {
+    width: 48px; height: 3px;
+    background: linear-gradient(90deg, var(--gold), var(--cyan));
+    border-radius: 2px;
+    margin-bottom: 16px;
+  }
+
+  /* Features */
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+  }
+
+  .feature-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    transition: var(--transition);
+  }
+
+  .feature-card:hover {
+    border-color: var(--gold-dim);
+    transform: translateY(-2px);
+  }
+
+  .feature-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    margin-bottom: 16px;
+  }
+
+  .feature-card h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .feature-card p {
+    font-size: 0.88rem;
+    color: var(--text2);
+    line-height: 1.5;
+  }
+
+  /* Commands */
+  .commands-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .cmd-group {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .cmd-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    cursor: pointer;
+    user-select: none;
+    transition: var(--transition);
+  }
+
+  .cmd-header:hover { background: var(--surface2); }
+
+  .cmd-header h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .cmd-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .badge-chat { background: rgba(64,208,224,0.15); color: var(--cyan); }
+  .badge-tool { background: rgba(80,208,128,0.15); color: var(--green); }
+  .badge-setup { background: rgba(240,192,64,0.15); color: var(--gold); }
+
+  .cmd-body {
+    padding: 0 20px 16px;
+    font-size: 0.88rem;
+    color: var(--text2);
+    line-height: 1.6;
+  }
+
+  .cmd-body code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    background: var(--surface2);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--cyan);
+  }
+
+  .cmd-body .cmd-example {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    background: var(--bg);
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin: 8px 0;
+    border-left: 3px solid var(--gold-dim);
+    color: var(--text);
+  }
+
+  /* Install */
+  .install-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 32px;
+  }
+
+  .install-step {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .install-step:last-child { margin-bottom: 0; }
+
+  .step-num {
+    width: 32px; height: 32px;
+    min-width: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--gold), var(--gold-dim));
+    color: #0a0a0f;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+  }
+
+  .step-content h4 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .step-content p {
+    font-size: 0.85rem;
+    color: var(--text2);
+  }
+
+  .step-content code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    background: var(--surface2);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--cyan);
+  }
+
+  .extras-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 8px;
+    margin-top: 20px;
+  }
+
+  .extra-chip {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.82rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .extra-chip code {
+    color: var(--cyan);
+  }
+
+  /* Footer */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 32px 0;
+    text-align: center;
+    color: var(--text2);
+    font-size: 0.85rem;
+  }
+
+  footer a {
+    color: var(--gold);
+    text-decoration: none;
+  }
+
+  footer a:hover { text-decoration: underline; }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    .hero { min-height: auto; padding: 60px 16px; }
+    .hero-buttons { flex-direction: column; align-items: stretch; }
+    .btn { justify-content: center; }
+    section { padding: 48px 0; }
+    .features-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="banner-art">
+    ███╗   ██╗██╗   ██╗███╗   ██╗████████╗██╗██╗   ██╗███████╗
+    ████╗  ██║██║   ██║████╗  ██║╚══██╔══╝██║██║   ██║██╔════╝
+    ██╔██╗ ██║██║   ██║██╔██╗ ██║   ██║   ██║██║   ██║███████╗
+    ██║╚██╗██║██║   ██║██║╚██╗██║   ██║   ██║██║   ██║╚════██║
+    ██║ ╚████║╚██████╔╝██║ ╚████║   ██║   ██║╚██████╔╝███████║
+    ╚═╝  ╚═══╝ ╚═════╝ ╚═╝  ╚═══╝   ╚═╝   ╚═╝ ╚═════╝ ╚══════╝
+  </div>
+  <h1 class="logo">Nuntius AI</h1>
+  <p class="logo-sub">O Mensageiro da IA no Terminal</p>
+  <p class="hero-tagline">
+    Agente de IA profissional de engenharia de software integrado ao terminal.
+    Funciona no Linux, Termux e macOS com shell completo, ferramentas e memória.
+  </p>
+  <div class="hero-buttons">
+    <a href="#install" class="btn btn-primary">⚡ Instalar</a>
+    <a href="#commands" class="btn btn-secondary">⌨ Comandos</a>
+    <a href="#features" class="btn btn-ghost">Recursos ↓</a>
+  </div>
+  <div class="scroll-indicator">↓</div>
+</section>
+
+<!-- Features -->
+<section id="features">
+  <div class="container">
+    <div class="section-divider"></div>
+    <h2 class="section-title">Recursos</h2>
+    <p class="section-subtitle">Tudo que você precisa para desenvolver no terminal com IA</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(240,192,64,0.12);color:var(--gold)">🤖</div>
+        <h3>9 Provedores</h3>
+        <p>OpenAI, Groq, DeepSeek, Ollama, GitHub Models, Gemini, Claude, NVIDIA NIM, OpenRouter</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(64,208,224,0.12);color:var(--cyan)">⌨</div>
+        <h3>CLI Completo</h3>
+        <p>Histórico com setas, pager, autocomplete, comandos /help, /model, /providers, /new</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(80,208,128,0.12);color:var(--green)">🔧</div>
+        <h3>28+ Ferramentas</h3>
+        <p>Shell, Python, Node, Go, Rust, arquivos, buscar, GitHub, Google Drive, web scraping</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(176,96,224,0.12);color:var(--purple)">🧠</div>
+        <h3>Memória Vetorial</h3>
+        <p>RAG com ChromaDB — busca semântica em conversas passadas. Comando /search</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(240,192,64,0.12);color:var(--gold)">🔌</div>
+        <h3>Sistema de Plugins</h3>
+        <p>Adicione ferramentas customizadas em Python. Basta criar um arquivo .py com setup()</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(64,208,224,0.12);color:var(--cyan)">🌐</div>
+        <h3>Navegador Headless</h3>
+        <p>Acesse páginas com JavaScript, tire screenshots. Playwright integrado</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(80,208,128,0.12);color:var(--green)">⏰</div>
+        <h3>Agendador Cron</h3>
+        <p>Agende tarefas no cron do sistema. Comandos /schedule, /scheduled, /cron</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(176,96,224,0.12);color:var(--purple)">📚</div>
+        <h3>Aprendizado Contínuo</h3>
+        <p>Auto-aprendizado com avaliação de sucesso/fracasso. /good, /bad, /feedback</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(240,192,64,0.12);color:var(--gold)">🛡</div>
+        <h3>Segurança</h3>
+        <p>Proteção contra comandos perigosos, bloqueio de redes internas, chaves via env vars</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(64,208,224,0.12);color:var(--cyan)">🐳</div>
+        <h3>MCP Server</h3>
+        <p>Suporte a servidores MCP para ferramentas externas via protocolo padrão</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(80,208,128,0.12);color:var(--green)">📱</div>
+        <h3>Telegram & Discord</h3>
+        <p>Gateways para Telegram e Discord — use o Nuntius de qualquer lugar</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(176,96,224,0.12);color:var(--purple)">✅</div>
+        <h3>CI/CD + Testes</h3>
+        <p>45 testes, GitHub Actions, matrix Python 3.9-3.12, ruff, mypy</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Commands -->
+<section id="commands">
+  <div class="container">
+    <div class="section-divider"></div>
+    <h2 class="section-title">Comandos</h2>
+    <p class="section-subtitle">Todos os comandos do chat e ferramentas do Nuntius</p>
+    <div class="commands-list">
+
+      <div class="cmd-group">
+        <div class="cmd-header" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+          <h3><span class="cmd-badge badge-chat">Chat</span> Navegação</h3>
+          <span style="color:var(--text2)">▼</span>
+        </div>
+        <div class="cmd-body" style="display:none">
+          <p><code>/exit</code> <code>/quit</code> <code>/sair</code> — Sai do chat</p>
+          <p><code>/help</code> <code>/ajuda</code> — Mostra ajuda</p>
+          <p><code>/new</code> <code>/nova</code> — Nova conversa</p>
+          <p><code>/clear</code> <code>/limpar</code> — Limpa o console</p>
+          <p><code>/model</code> — Mostra provedor e modelo ativos</p>
+          <p><code>/providers</code> — Lista provedores disponíveis</p>
+        </div>
+      </div>
+
+      <div class="cmd-group">
+        <div class="cmd-header" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+          <h3><span class="cmd-badge badge-chat">Chat</span> Memória & Aprendizado</h3>
+          <span style="color:var(--text2)">▼</span>
+        </div>
+        <div class="cmd-body" style="display:none">
+          <p><code>/search &lt;termo&gt;</code> — Busca semântica em conversas passadas</p>
+          <p><code>/good</code> <code>/bom</code> <code>/ok</code> — Marca interação como bem-sucedida</p>
+          <p><code>/bad</code> <code>/ruim</code> <code>/fail</code> — Marca interação como mal-sucedida</p>
+          <p><code>/feedback</code> <code>/stats</code> — Estatísticas de aprendizado</p>
+          <p><code>/history</code> <code>/historico</code> — Histórico da conversa</p>
+          <p><code>/export</code> — Exporta conversa em Markdown</p>
+        </div>
+      </div>
+
+      <div class="cmd-group">
+        <div class="cmd-header" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+          <h3><span class="cmd-badge badge-chat">Chat</span> Skills & Plugins</h3>
+          <span style="color:var(--text2)">▼</span>
+        </div>
+        <div class="cmd-body" style="display:none">
+          <p><code>/skills</code> — Lista skills aprendidas</p>
+          <p><code>/learn nome: instrução</code> — Ensina uma skill manualmente</p>
+          <p><code>/forget nome</code> — Remove uma skill</p>
+          <p><code>/plugins</code> <code>/plug</code> — Lista plugins carregados</p>
+          <p><code>/mcp</code> — Status dos servidores MCP</p>
+        </div>
+      </div>
+
+      <div class="cmd-group">
+        <div class="cmd-header" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+          <h3><span class="cmd-badge badge-chat">Chat</span> Sistema</h3>
+          <span style="color:var(--text2)">▼</span>
+        </div>
+        <div class="cmd-body" style="display:none">
+          <p><code>/cache</code> — Mostra status do cache de ferramentas</p>
+          <p><code>/cache clear</code> — Limpa cache</p>
+          <p><code>/scheduled</code> <code>/tasks</code> <code>/cron</code> — Lista tarefas agendadas no cron</p>
+          <p><code>/stats</code> — Estatísticas da sessão</p>
+        </div>
+      </div>
+
+      <div class="cmd-group">
+        <div class="cmd-header" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+          <h3><span class="cmd-badge badge-tool">Ferramentas</span> Arquivos & Shell</h3>
+          <span style="color:var(--text2)">▼</span>
+        </div>
+        <div class="cmd-body" style="display:none">
+          <p><code>read</code> — Lê arquivo</p>
+          <p><code>write</code> — Escreve arquivo</p>
+          <p><code>edit</code> — Edita arquivo (substituição exata)</p>
+          <p><code>glob</code> — Busca arquivos por padrão</p>
+          <p><code>grep</code> — Busca conteúdo em arquivos</p>
+          <p><code>run_shell</code> <code>bash</code> — Executa comando shell</p>
+          <p><code>run_python</code> — Executa código Python</p>
+          <p><code>run_node</code> — Executa JavaScript/Node.js</p>
+          <p><code>run_go</code> — Executa código Go</p>
+          <p><code>run_rust</code> — Executa código Rust</p>
+        </div>
+      </div>
+
+      <div class="cmd-group">
+        <div class="cmd-header" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+          <h3><span class="cmd-badge badge-tool">Ferramentas</span> Web & GitHub</h3>
+          <span style="color:var(--text2)">▼</span>
+        </div>
+        <div class="cmd-body" style="display:none">
+          <p><code>web_search</code> — Pesquisa na web</p>
+          <p><code>web_fetch</code> — Obtém conteúdo de URL</p>
+          <p><code>browser_open</code> — Abre URL em navegador headless (com JS)</p>
+          <p><code>browser_screenshot</code> — Captura screenshot de página</p>
+          <p><code>task</code> — Delega tarefa a subagente</p>
+          <p><code>github_*</code> — Ferramentas GitHub (listar repos, issues)</p>
+          <p><code>drive_*</code> — Ferramentas Google Drive (listar, baixar)</p>
+        </div>
+      </div>
+
+      <div class="cmd-group">
+        <div class="cmd-header" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+          <h3><span class="cmd-badge badge-tool">Ferramentas</span> Agendamento</h3>
+          <span style="color:var(--text2)">▼</span>
+        </div>
+        <div class="cmd-body" style="display:none">
+          <p><code>schedule_task(cron, command, task_id)</code> — Agenda tarefa no cron do sistema</p>
+          <div class="cmd-example">schedule_task(cron="0 9 * * *", command="echo Bom dia!", task_id="saudacao")</div>
+          <p><code>list_scheduled_tasks()</code> — Lista tarefas agendadas</p>
+          <p><code>remove_scheduled_task(task_id)</code> — Remove tarefa</p>
+          <p><code>clear_scheduled_tasks()</code> — Remove todas as tarefas Nuntius</p>
+        </div>
+      </div>
+
+      <div class="cmd-group">
+        <div class="cmd-header" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+          <h3><span class="cmd-badge badge-tool">Ferramentas</span> Utilitárias</h3>
+          <span style="color:var(--text2)">▼</span>
+        </div>
+        <div class="cmd-body" style="display:none">
+          <p><code>current_time</code> — Data e hora atuais</p>
+          <p><code>calculator</code> — Calculadora</p>
+          <p><code>system_info</code> — Informações do sistema</p>
+          <p><code>random_number</code> — Número aleatório</p>
+          <p><code>random_uuid</code> — UUID v4</p>
+          <p><code>random_password</code> — Senha aleatória</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- Install -->
+<section id="install">
+  <div class="container">
+    <div class="section-divider"></div>
+    <h2 class="section-title">Instalação</h2>
+    <p class="section-subtitle">Funciona no Linux, Termux e macOS</p>
+    <div class="install-card">
+      <div class="install-step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <h4>Instalar via pip</h4>
+          <p>Requer <strong>Python 3.8+</strong> e <strong>pip</strong></p>
+          <div class="cmd-example">pip install git+https://github.com/ClubeDoTermux/Nuntius.git</div>
+        </div>
+      </div>
+      <div class="install-step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <h4>Configurar</h4>
+          <p>Execute <code>nuntius setup</code> para configurar seu provedor e chave de API</p>
+        </div>
+      </div>
+      <div class="install-step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <h4>Usar</h4>
+          <p>Digite <code>nuntius</code> no terminal para iniciar o chat</p>
+        </div>
+      </div>
+
+      <h4 style="margin-top:28px;margin-bottom:12px;font-size:0.9rem;color:var(--text2)">Extras opcionais:</h4>
+      <div class="extras-grid">
+        <div class="extra-chip">🧠 <code>nuntius[vector]</code> ChromaDB</div>
+        <div class="extra-chip">🌐 <code>nuntius[browser]</code> Playwright</div>
+        <div class="extra-chip">🤖 <code>nuntius[mcp]</code> MCP</div>
+        <div class="extra-chip">📱 <code>nuntius[telegram]</code> Telegram</div>
+        <div class="extra-chip">💬 <code>nuntius[discord]</code> Discord</div>
+        <div class="extra-chip">📦 <code>nuntius[all]</code> Tudo</div>
+      </div>
+
+      <h4 style="margin-top:28px;margin-bottom:12px;font-size:0.9rem;color:var(--text2)">Provedores suportados:</h4>
+      <div class="extras-grid">
+        <div class="extra-chip">🟢 OpenAI</div>
+        <div class="extra-chip">🟢 Groq (grátis)</div>
+        <div class="extra-chip">🟢 DeepSeek</div>
+        <div class="extra-chip">🟢 Ollama (local)</div>
+        <div class="extra-chip">🟢 GitHub Models (grátis)</div>
+        <div class="extra-chip">🟢 Gemini (grátis)</div>
+        <div class="extra-chip">🟢 NVIDIA NIM (grátis)</div>
+        <div class="extra-chip">🟢 OpenRouter</div>
+        <div class="extra-chip">🟢 Anthropic Claude</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p><a href="https://github.com/ClubeDoTermux/Nuntius" target="_blank">ClubeDoTermux/Nuntius</a> — MIT License</p>
+    <p style="margin-top:4px;font-size:0.75rem">Feito com ❤️ para a comunidade Termux</p>
+  </div>
+</footer>
+
+<script>
+document.querySelectorAll('.cmd-group').forEach(g => {
+  const header = g.querySelector('.cmd-header');
+  const body = g.querySelector('.cmd-body');
+  header.addEventListener('click', () => {
+    const isOpen = body.style.display !== 'none';
+    body.style.display = isOpen ? 'none' : 'block';
+    header.querySelector('span:last-child').textContent = isOpen ? '▼' : '▲';
+  });
+});
+</script>
+</body>
+</html>
