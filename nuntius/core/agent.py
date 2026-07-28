@@ -164,6 +164,20 @@ class Agent:
         except Exception:
             return ""
 
+    def _inject_learning_context(self):
+        if not self.learning_loop:
+            return
+        feedback = self.learning_loop.get_feedback()
+        if not feedback:
+            return
+        for i, msg in enumerate(self.messages):
+            if msg.get("role") == "system" and "## Lessons Learned" not in msg.get("content", ""):
+                self.messages[i] = {
+                    "role": "system",
+                    "content": msg["content"] + "\n\n" + feedback,
+                }
+                break
+
     def _add_message(self, role: str, content: str = "", tool_calls: list = None):
         self._ensure_system_prompt()
         msg = {"role": role, "content": content}
@@ -207,6 +221,7 @@ class Agent:
         self._tool_cycle = 0
         while self._tool_cycle < MAX_TOOL_CYCLES:
             self._tool_cycle += 1
+            self._inject_learning_context()
             response = await self.provider.chat_completion(
                 messages=self.messages,
                 model=self.model,
@@ -226,7 +241,9 @@ class Agent:
                     args = json.loads(fn.get("arguments", "{}"))
                     result = await registry.execute(fn["name"], **args)
                     if self.learning_loop:
-                        self.learning_loop.evaluate_tool(fn["name"], result)
+                        ok = self.learning_loop.evaluate_tool(fn["name"], result)
+                        if not ok:
+                            result = f"[TOOL FAILED] {result}"
                     self._add_tool_result(tc["id"], fn["name"], result)
             else:
                 content = msg.get("content", "")
@@ -252,6 +269,7 @@ class Agent:
         self._tool_cycle = 0
         while self._tool_cycle < MAX_TOOL_CYCLES:
             self._tool_cycle += 1
+            self._inject_learning_context()
             collected_content = ""
             tool_calls_data = []
 
@@ -279,10 +297,12 @@ class Agent:
                     except json.JSONDecodeError:
                         args = {}
                     yield {"type": "tool_start", "data": f"{name}({args})"}
-                    result = await registry.execute(name, **args)
+                    result = await registry.execute(fn["name"], **args)
                     if self.learning_loop:
-                        self.learning_loop.evaluate_tool(name, result)
-                    self._add_tool_result(tc.get("id", ""), name, result)
+                        ok = self.learning_loop.evaluate_tool(fn["name"], result)
+                        if not ok:
+                            result = f"[TOOL FAILED] {result}"
+                    self._add_tool_result(tc.get("id", ""), fn["name"], result)
                     yield {"type": "tool_end", "data": (name, result)}
             else:
                 self._add_message("assistant", collected_content)
