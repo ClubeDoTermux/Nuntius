@@ -1,11 +1,20 @@
 # Nuntius AI
 
+<p align="center">
+  <a href="https://clubedotermux.github.io/Nuntius/"><img src="https://img.shields.io/badge/📖_Site_oficial-clubedotermux.github.io/Nuntius-gold?style=flat-square" alt="Site"></a>
+  <a href="https://github.com/ClubeDoTermux/Nuntius/releases"><img src="https://img.shields.io/github/v/release/ClubeDoTermux/Nuntius?style=flat-square&label=versão" alt="Version"></a>
+  <a href="https://github.com/ClubeDoTermux/Nuntius/actions"><img src="https://img.shields.io/github/actions/workflow/status/ClubeDoTermux/Nuntius/test.yml?style=flat-square&label=tests" alt="Tests"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License"></a>
+</p>
+
                     ╔╗╔┌─┐┌┬┐╔╦╗╔╗╔┬─┐╔╗
                     ║║║│ │ │ ║║║║║║║║║║
                     ║║║│ │ │ ║║║║║║║║║║
                     ╚╩╝└─┘ ┴ ╩╩╝╚╩╝└─┘╚╝
 
 O Mensageiro da IA no Terminal — um agente de IA completo para Termux, Linux e macOS.
+
+📖 **Site oficial**: [clubedotermux.github.io/Nuntius](https://clubedotermux.github.io/Nuntius/) — comandos, instalação e documentação.
 
 ## Instalação
 
